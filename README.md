@@ -215,10 +215,11 @@ python scripts/build_09_comparacion.py    # Genera 09_Comparacion_Modelos.ipynb
 
 ---
 
-## Autor
+## Autores
 
-**Efrén Bohorquez**
-- GitHub: [@efrenbohorquez](https://github.com/efrenbohorquez)
+- **Efrén Bohorquez** — [@efrenbohorquez](https://github.com/efrenbohorquez)
+- **Mauricio García**
+- **Ernesto Sánchez**
 
 ---
 
