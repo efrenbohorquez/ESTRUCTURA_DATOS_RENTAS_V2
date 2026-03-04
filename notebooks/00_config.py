@@ -106,13 +106,22 @@ ESTACIONALIDAD = 12
 #    2025:  2.60% — Estimación igual al crecimiento PIB 2025pr (DANE, 16-feb-2026). WB aún no publica.
 #    2026:  2.50% — Promedio de proyecciones. Año en curso, dato final desconocido.
 #
+# ── Desempleo (tasa anual promedio, %) — DANE Gran Encuesta Integrada de Hogares (GEIH):
+#    dane.gov.co/index.php/estadisticas-por-tema/mercado-laboral/empleo-y-desempleo
+#    2021: 13.7% — Recuperación post-COVID, aún elevado por efectos de pandemia.
+#    2022: 11.2% — Reactivación económica generalizada.
+#    2023: 10.2% — Tendencia descendente continua; mercado laboral en estabilización.
+#    2024:  9.8% — DANE GEIH dic-2024. Promedio anual confirmado.
+#    2025:  9.5% — DANE GEIH dic-2025. Promedio anual preliminar.
+#    2026:  9.3% — Proyección basada en tendencia descendente del mercado laboral.
+#
 MACRO_DATA = {
-    2021: {'IPC': 5.62,  'Salario_Minimo': 3.50,  'UPC': 5.00,  'Consumo_Hogares': 14.72},  # Fuentes verificadas
-    2022: {'IPC': 13.12, 'Salario_Minimo': 10.07, 'UPC': 5.42,  'Consumo_Hogares': 10.79},  # Fuentes verificadas
-    2023: {'IPC': 9.28,  'Salario_Minimo': 16.00, 'UPC': 16.23, 'Consumo_Hogares': 0.38},   # Fuentes verificadas
-    2024: {'IPC': 5.20,  'Salario_Minimo': 12.07, 'UPC': 12.01, 'Consumo_Hogares': 1.60},   # World Bank confirmado (feb-2026)
-    2025: {'IPC': 5.10,  'Salario_Minimo': 9.54,  'UPC': 8.00,  'Consumo_Hogares': 2.60},   # Consumo = PIB 2025pr DANE
-    2026: {'IPC': 5.10,  'Salario_Minimo': 23.00, 'UPC': 7.00,  'Consumo_Hogares': 2.50},   # Consumo promedio proyecciones
+    2021: {'IPC': 5.62,  'Salario_Minimo': 3.50,  'UPC': 5.00,  'Consumo_Hogares': 14.72, 'Desempleo': 13.7},  # Fuentes verificadas
+    2022: {'IPC': 13.12, 'Salario_Minimo': 10.07, 'UPC': 5.42,  'Consumo_Hogares': 10.79, 'Desempleo': 11.2},  # Fuentes verificadas
+    2023: {'IPC': 9.28,  'Salario_Minimo': 16.00, 'UPC': 16.23, 'Consumo_Hogares': 0.38,  'Desempleo': 10.2},  # Fuentes verificadas
+    2024: {'IPC': 5.20,  'Salario_Minimo': 12.07, 'UPC': 12.01, 'Consumo_Hogares': 1.60,  'Desempleo': 9.8},   # DANE GEIH confirmado
+    2025: {'IPC': 5.10,  'Salario_Minimo': 9.54,  'UPC': 8.00,  'Consumo_Hogares': 2.60,  'Desempleo': 9.5},   # DANE GEIH preliminar
+    2026: {'IPC': 5.10,  'Salario_Minimo': 23.00, 'UPC': 7.00,  'Consumo_Hogares': 2.50,  'Desempleo': 9.3},   # Proyección tendencial
 }
 
 MESES_PICO = [1, 7]        # Enero y Julio

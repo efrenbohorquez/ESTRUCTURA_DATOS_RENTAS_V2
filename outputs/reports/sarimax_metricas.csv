@@ -1,2 +1,2 @@
 Modelo,Transformacion,Train,Test,MAPE,RMSE_MM,MAE_MM,AICc,AIC,BIC,Ljung_Box_p,Shapiro_Wilk_p,Total_2026_MM,Crec_vs_2025,Exogenas,Modelos_evaluados
-"SARIMAX(0,1,1)(0,1,0,12)",log1p,48m,3m,13.99,42.5,39.6,-34.18,-34.72,-31.73,0.9934,0.0,3643.1,6.2,Ninguna,84
+"SARIMAX(0,1,1)(0,1,0,12)",log1p,48m,3m,13.99,42.5,39.6,-34.18,-34.72,-31.73,0.9934,0.0,3643.1,6.2,Ninguna,132
