@@ -35,7 +35,7 @@ for _d in [DATA_RAW, DATA_PROCESSED, OUTPUTS_FIGURES, OUTPUTS_FORECASTS, OUTPUTS
     _d.mkdir(parents=True, exist_ok=True)
 
 # Archivo fuente de datos principal (ruta definitiva confirmada)
-DATA_FILE = PROJECT_ROOT / "BaseRentasVF_limpieza21feb_sin2021_ene_sep.xlsx"
+DATA_FILE = PROJECT_ROOT / "BaseRentasCedidasVF.xlsx"
 
 # Años a incluir en el análisis
 ANOS_ANALISIS = [2021, 2022, 2023, 2024, 2025]

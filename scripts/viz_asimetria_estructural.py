@@ -28,7 +28,7 @@ except Exception as e:
     C_PRIMARY = '#1B2A4A'
     C_SECONDARY = '#C0392B'
     OUTPUTS_FIGURES = Path.cwd() / "outputs" / "figures"
-    DATA_FILE = Path.cwd() / "BaseRentasVF_limpieza21feb_FINAL.xlsx"
+    DATA_FILE = Path.cwd() / "BaseRentasCedidasVF.xlsx"
     PROJECT_ROOT = Path.cwd()
     PROYECTO_ENTIDAD = "Departamentos de Colombia"
 

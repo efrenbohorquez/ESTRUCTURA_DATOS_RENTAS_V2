@@ -3,7 +3,7 @@
 Este documento detalla el procedimiento técnico seguido para la consolidación y limpieza del dataset de Recaudo de Rentas Cedidas utilizado en la tesis.
 
 ## 1. Consolidación de la Fuente de Datos
-El dataset original se basa en el archivo `BaseRentasVF_limpieza21feb_FINAL.xlsx`. Este archivo representa la versión final tras integrar múltiples fuentes transaccionales y aplicar filtros de calidad.
+El dataset original se basa en el archivo `BaseRentasCedidasVF.xlsx`. Este archivo representa la versión final tras integrar múltiples fuentes transaccionales y aplicar filtros de calidad.
 
 ## 2. Truncamiento Metodológico (Ruptura Estructural COVID-19)
 Se aplicó un criterio de exclusión temporal para garantizar la estabilidad de los modelos predictivos:

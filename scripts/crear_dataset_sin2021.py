@@ -2,15 +2,15 @@
 """
 crear_dataset_sin2021.py
 Genera un dataset filtrado con solo datos de 2022, 2023, 2024 y 2025.
-Fuente: BaseRentasVF_limpieza21feb_FINAL.xlsx
-Salida: BaseRentasVF_sin2021_2022_2025.xlsx
+Fuente: BaseRentasCedidasVF.xlsx
+Salida: BaseRentasCedidasVF_2022_2025.xlsx
 """
 import pandas as pd
 from pathlib import Path
 
 project_root = Path(r'C:\Users\efren\Music\ESTRUCTURA DATOS RENTAS V2')
-ruta_origen = project_root / 'BaseRentasVF_limpieza21feb_sin2021_ene_sep.xlsx'
-ruta_destino = project_root / 'data' / 'raw' / 'BaseRentasVF_2022_2025.xlsx'
+ruta_origen = project_root / 'BaseRentasCedidasVF.xlsx'
+ruta_destino = project_root / 'data' / 'raw' / 'BaseRentasCedidasVF_2022_2025.xlsx'
 
 COL_FECHA = 'FechaRecaudo'
 COL_VALOR = 'ValorRecaudo'
