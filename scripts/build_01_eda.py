@@ -49,7 +49,7 @@ Cleveland (1993), articulado en cuatro fases:
 | **III** | Descomposición clásica, estacionariedad (ADF/KPSS), ACF/PACF |
 | **IV** | Deflación real con IPC, crecimiento interanual, correlación macro |
 
-**Dataset.** `BaseRentasCedidasVF.xlsx` — 149 648 registros
+**Dataset.** `BaseRentasVF_limpieza21feb_sin2021_ene_sep.xlsx` — 149 648 registros
 transaccionales × 13 variables, periodo Oct 2021 – Dic 2025 (51 meses).
 """)
 

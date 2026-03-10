@@ -1,5 +1,5 @@
 ﻿import pandas as pd
-df = pd.read_excel('BaseRentasCedidasVF.xlsx')
+df = pd.read_excel('BaseRentasVF_limpieza21feb_sin2021_ene_sep.xlsx')
 print('TipoRegistro values:')
 print(df['TipoRegistro'].value_counts().to_string())
 print()

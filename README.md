@@ -147,7 +147,7 @@ python scripts/build_09_comparacion.py    # Genera 09_Comparacion_Modelos.ipynb
 
 | Atributo | Valor |
 |----------|-------|
-| **Fuente** | BaseRentasCedidasVF (ADRES) |
+| **Fuente** | BaseRentasVF_limpieza21feb_sin2021_ene_sep (ADRES) |
 | **Registros** | 149,648 transacciones |
 | **Periodo** | Octubre 2021 – Diciembre 2025 |
 | **Frecuencia** | Mensual (51 observaciones) |
