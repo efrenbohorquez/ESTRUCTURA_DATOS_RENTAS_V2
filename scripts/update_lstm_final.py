@@ -1,6 +1,6 @@
 import json
 
-notebook_path = r'c:\Users\efren\Music\ESTRUCTURA DATOS RENTAS\notebooks\08_LSTM.ipynb'
+notebook_path = r'c:\Users\efren\Music\ESTRUCTURA DATOS RENTAS\notebooks\07_LSTM.ipynb'
 
 with open(notebook_path, 'r', encoding='utf-8') as f:
     nb = json.load(f)

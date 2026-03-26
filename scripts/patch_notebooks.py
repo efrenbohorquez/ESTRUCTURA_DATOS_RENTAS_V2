@@ -25,28 +25,16 @@ def patch_notebook(filepath, target_str, replacement_str):
     else:
         print(f"  ℹ️ Target string not found in {filepath}")
 
-# 1. SARIMA
+# 1. SARIMAX
 patch_notebook(
-    'notebooks/04_SARIMA.ipynb',
-    "index=test.index)",
-    "index=test.index)\n    df_forecast.index.name = 'Fecha'"
-)
-patch_notebook(
-    'notebooks/04_SARIMA.ipynb',
-    "index=y_futuro.index)",
-    "index=y_futuro.index)\n    df_futuro.index.name = 'Fecha'"
-)
-
-# 2. SARIMAX
-patch_notebook(
-    'notebooks/05_SARIMAX.ipynb',
+    'notebooks/04_SARIMAX.ipynb',
     "index=test.index)",
     "index=test.index)\ndf_forecast.index.name = 'Fecha'"
 )
 
 # 3. Comparacion (Robustness)
 patch_notebook(
-    'notebooks/09_Comparacion_Modelos.ipynb',
+    'notebooks/08_Comparacion_Modelos.ipynb',
     "df = pd.read_csv(ruta, parse_dates=['Fecha'])",
     "df = pd.read_csv(ruta)\n        col_fecha = 'Fecha' if 'Fecha' in df.columns else 'FechaRecaudo'\n        df[col_fecha] = pd.to_datetime(df[col_fecha])\n        df = df.rename(columns={col_fecha: 'Fecha'})"
 )

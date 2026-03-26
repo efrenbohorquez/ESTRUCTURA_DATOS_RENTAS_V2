@@ -124,7 +124,7 @@ if __name__ == "__main__":
         "Metodología SARIMAX",
         "Inclusión de Variables Exógenas (IPC, Salario, UPC)",
         "metodologia_sarimax.md",
-        ["03_matriz_correlacion.png", "05_sarimax_pronostico.png"],
+        ["03_matriz_correlacion.png", "04_sarimax_pronostico.png"],
         "Reporte_02_SARIMAX.pdf"
     )
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         "Metodología XGBoost",
         "Aprendizaje Supervisado y Feature Engineering",
         "metodologia_xgboost.md",
-        ["07_xgboost_importancia.png", "07_xgboost_pronostico.png", "07_xgboost_shap.png"],
+        ["06_xgboost_importancia.png", "06_xgboost_pronostico.png", "06_xgboost_shap.png"],
         "Reporte_03_XGBoost.pdf"
     )
 

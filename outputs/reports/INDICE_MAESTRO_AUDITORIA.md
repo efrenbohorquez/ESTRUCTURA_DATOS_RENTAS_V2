@@ -268,12 +268,12 @@ notebooks/
 ├── 01_EDA_Completo.ipynb                      ← EDA + Limpieza
 ├── 02_Estacionalidad.ipynb
 ├── 03_Correlacion_Macro.ipynb
-├── 04_SARIMA.ipynb
-├── 05_SARIMAX.ipynb
-├── 06_Prophet.ipynb
-├── 07_XGBoost.ipynb                           ← MODELO GANADOR
-├── 08_LSTM.ipynb
-└── 09_Comparacion_Modelos.ipynb               ← Evaluación
+├── 04_SARIMAX.ipynb
+├── 04_SARIMAX.ipynb
+├── 05_Prophet.ipynb
+├── 06_XGBoost.ipynb                           ← MODELO GANADOR
+├── 07_LSTM.ipynb
+└── 08_Comparacion_Modelos.ipynb               ← Evaluación
 ```
 
 ---

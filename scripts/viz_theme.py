@@ -23,12 +23,12 @@ from pathlib import Path
 # ============================================================
 # Jerarquía tipográfica académica
 FONT_FAMILY = 'serif'  # Estilo académico clásico
-FONT_TITLE = {'family': FONT_FAMILY, 'weight': 'bold', 'size': 15}
-FONT_SUBTITLE = {'family': FONT_FAMILY, 'weight': 'normal', 'size': 12, 'style': 'italic'}
-FONT_AXIS = {'family': FONT_FAMILY, 'size': 11}
-FONT_TICK = {'family': FONT_FAMILY, 'size': 10}
-FONT_LEGEND = {'family': FONT_FAMILY, 'size': 9}
-FONT_ANNOTATION = {'family': FONT_FAMILY, 'size': 9}
+FONT_TITLE = {'family': FONT_FAMILY, 'weight': 'bold', 'size': 16}
+FONT_SUBTITLE = {'family': FONT_FAMILY, 'weight': 'normal', 'size': 13, 'style': 'italic'}
+FONT_AXIS = {'family': FONT_FAMILY, 'size': 12}
+FONT_TICK = {'family': FONT_FAMILY, 'size': 11}
+FONT_LEGEND = {'family': FONT_FAMILY, 'size': 10}
+FONT_ANNOTATION = {'family': FONT_FAMILY, 'size': 10}
 FONT_WATERMARK = {'family': FONT_FAMILY, 'size': 7, 'alpha': 0.4}
 
 # ============================================================
@@ -51,8 +51,8 @@ C_BACKGROUND = '#FAFBFC'    # Fondo casi blanco
 C_TEXT = '#2C3E50'          # Texto principal
 C_TEXT_LIGHT = '#7F8C8D'    # Texto secundario
 C_HIGHLIGHT = '#F39C12'     # Amarillo para destacar
-C_CI_FILL = '#D5E8F0'       # Relleno intervalos de confianza
-C_CI_BORDER = '#A8CCE0'     # Borde intervalos de confianza
+C_CI_FILL = '#C8DDF0'       # Relleno intervalos de confianza (más visible)
+C_CI_BORDER = '#7BAED4'     # Borde intervalos de confianza (más contraste)
 C_POSITIVE = '#27AE60'      # Verde para valores positivos
 C_NEGATIVE = '#E74C3C'      # Rojo para valores negativos
 C_TRAIN = '#2C3E50'         # Zona de entrenamiento
@@ -114,18 +114,18 @@ def aplicar_tema_profesional():
         
         # --- Fuentes ---
         'font.family': FONT_FAMILY,
-        'font.size': 10,
+        'font.size': 11,
         
         # --- Ejes ---
         'axes.facecolor': 'white',
         'axes.edgecolor': '#D5D8DC',
         'axes.linewidth': 0.8,
-        'axes.titlesize': 14,
+        'axes.titlesize': 15,
         'axes.titleweight': 'bold',
-        'axes.titlepad': 15,
-        'axes.labelsize': 11,
+        'axes.titlepad': 18,
+        'axes.labelsize': 12,
         'axes.labelweight': 'normal',
-        'axes.labelpad': 8,
+        'axes.labelpad': 10,
         'axes.labelcolor': C_TEXT,
         'axes.spines.top': False,
         'axes.spines.right': False,
@@ -142,10 +142,10 @@ def aplicar_tema_profesional():
         'grid.linestyle': '-',
         
         # --- Ticks ---
-        'xtick.labelsize': 9,
-        'ytick.labelsize': 9,
-        'xtick.color': C_TEXT_LIGHT,
-        'ytick.color': C_TEXT_LIGHT,
+        'xtick.labelsize': 10,
+        'ytick.labelsize': 10,
+        'xtick.color': C_TEXT,
+        'ytick.color': C_TEXT,
         'xtick.direction': 'out',
         'ytick.direction': 'out',
         'xtick.major.size': 4,
@@ -155,7 +155,7 @@ def aplicar_tema_profesional():
         'xtick.minor.visible': False,
         
         # --- Leyenda ---
-        'legend.fontsize': 9,
+        'legend.fontsize': 10,
         'legend.frameon': True,
         'legend.framealpha': 0.95,
         'legend.edgecolor': '#D5D8DC',
@@ -443,11 +443,11 @@ def grafica_pronostico(ax, fechas_real, valores_real, fechas_pred, valores_pred,
     # Intervalo de confianza
     if ci_lower is not None and ci_upper is not None:
         ax.fill_between(fechas_pred, ci_lower, ci_upper,
-                        alpha=0.15, color=color_pred, label='IC 95%', zorder=1)
-        ax.plot(fechas_pred, ci_lower, color=color_pred, linewidth=0.5,
-                alpha=0.3, linestyle=':')
-        ax.plot(fechas_pred, ci_upper, color=color_pred, linewidth=0.5,
-                alpha=0.3, linestyle=':')
+                        alpha=0.20, color=color_pred, label='IC 95%', zorder=1)
+        ax.plot(fechas_pred, ci_lower, color=color_pred, linewidth=0.8,
+                alpha=0.5, linestyle='--')
+        ax.plot(fechas_pred, ci_upper, color=color_pred, linewidth=0.8,
+                alpha=0.5, linestyle='--')
     
     formato_pesos_eje(ax)
     return ax

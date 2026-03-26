@@ -109,19 +109,19 @@ def generate_pdf():
     # --- VISUALIZACIONES COMPONENTES ---
     pdf.add_page()
     pdf.chapter_title("3. Análisis de Componentes")
-    pdf.add_image_centered(str(OUTPUTS_FIGURES / "06_prophet_componentes.png"))
+    pdf.add_image_centered(str(OUTPUTS_FIGURES / "05_prophet_componentes.png"))
     pdf.chapter_body("La descomposición de Prophet permite observar la tendencia subyacente, la estacionalidad anual y el efecto neto de los festivos colombianos definidos. Esto facilita la interpretación de por qué el modelo predice ciertos valores en meses específicos.")
 
     # --- CHANGEPOINTS ---
     pdf.add_page()
     pdf.chapter_title("4. Puntos de Cambio de Tendencia (Changepoints)")
-    pdf.add_image_centered(str(OUTPUTS_FIGURES / "06_prophet_changepoints.png"))
+    pdf.add_image_centered(str(OUTPUTS_FIGURES / "05_prophet_changepoints.png"))
     pdf.chapter_body("Los changepoints identificados muestran momentos clave donde la dinámica del recaudo cambió. Esto es vital para entender si ha habido mejoras administrativas o impactos externos permanentes en el flujo de caja.")
 
     # --- PRONÓSTICO VS REAL ---
     pdf.add_page()
     pdf.chapter_title("5. Evaluación del Pronóstico (Test Set)")
-    pdf.add_image_centered(str(OUTPUTS_FIGURES / "06_prophet_pronostico.png"))
+    pdf.add_image_centered(str(OUTPUTS_FIGURES / "05_prophet_pronostico.png"))
     pdf.chapter_body("Comparativa entre los valores reales observados y las predicciones del modelo. Las bandas sombreadas representan el intervalo de incertidumbre al 95%, proporcionando una medida del riesgo en la proyección.")
 
     # --- MÉTRICAS ---

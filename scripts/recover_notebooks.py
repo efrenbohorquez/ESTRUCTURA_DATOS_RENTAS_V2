@@ -10,9 +10,8 @@ os.makedirs(recovery_dir, exist_ok=True)
 target_notebooks = [
     '01_EDA_Completo.ipynb', 
     '02_Estacionalidad.ipynb', 
-    '04_SARIMA.ipynb', 
-    '05_SARIMAX.ipynb', 
-    '07_XGBoost.ipynb'
+    '04_SARIMAX.ipynb', 
+    '06_XGBoost.ipynb'
 ]
 
 found_any = False

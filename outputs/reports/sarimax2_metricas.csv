@@ -1,2 +1,0 @@
-Modelo,Transformacion,Train,Test,MAPE,RMSE_MM,MAE_MM,AICc,AIC,BIC,Ljung_Box_p,Shapiro_Wilk_p,Levene_p,Total_2026_MM,Crec_vs_2025,Exogenas
-"SARIMAX_Alt(0, 1, 1)x(0, 1, 0)+dummies",log1p,48m,3m,13.99,42.5,39.6,-29.29,-30.72,-24.74,0.9934,0.0,0.1488,3643.1,6.2,es_pico_fiscal+es_festividad (dummies)

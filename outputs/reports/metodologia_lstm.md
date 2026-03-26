@@ -2,7 +2,7 @@
 REPORTE TECNICO: MODELO LSTM - RENTAS CEDIDAS
 ======================================================================
 
-Fecha de generacion: 2026-03-10 06:15
+Fecha de generacion: 2026-03-26 03:37
 
 1. CONFIGURACION
    Serie: 51 meses (Oct 2021 - Dic 2025)
@@ -22,7 +22,7 @@ Fecha de generacion: 2026-03-10 06:15
    Mejor epoca: 53
    Batch size: 4
    LR inicial: 0.001
-   Tiempo: 7.8 seg
+   Tiempo: 8.3 seg
 
 4. METRICAS OOS (Oct-Dic 2025)
    MAPE:    23.52%
@@ -43,7 +43,7 @@ Fecha de generacion: 2026-03-10 06:15
    - El ratio muestras/parametros (0.0011) indica alto
      riesgo de sobreajuste, mitigado con regularizacion agresiva.
    - Este modelo sirve como benchmark experimental de Deep Learning
-     frente a modelos estadisticos clasicos (SARIMA, Prophet)
+     frente a modelos estadisticos clasicos (SARIMAX, Prophet)
      y de Machine Learning (XGBoost).
    - El principio de parsimonia de Occam sugiere que la complejidad
      algoritmica solo agrega valor con datos suficientes.

@@ -1218,7 +1218,7 @@ print(f"\n  Dummies recomendadas:")
 print(f"    • is_peak (Ene=1, Jul=1)  — captura picos estacionales")
 print(f"    • is_festivity (Jun=1, Dic=1) — consumo festivo")
 print(f"    • ERP_2025 (si cambio significativo en varianza)")
-print(f"\n  → Próximo paso: 04_SARIMA.ipynb (orden p,d,q × P,D,Q)")""")
+print(f"\n  → Próximo paso: 04_SARIMAX.ipynb (orden p,d,q × P,D,Q)")""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 18 — Conclusiones (MD)
@@ -1246,7 +1246,7 @@ md(r"""---
 | `data/processed/serie_mensual_macro.csv` | Serie mensual con variables macro |
 | `outputs/figures/03_*.png` | 6 figuras de diagnóstico |
 
-> **Siguiente paso**: `04_SARIMA.ipynb` — Identificación de orden óptimo
+> **Siguiente paso**: `04_SARIMAX.ipynb` — Identificación de orden óptimo
 > $(p, d, q) \times (P, D, Q)_{12}$ con AIC/BIC grid search.""")
 
 # ════════════════════════════════════════════════════════════

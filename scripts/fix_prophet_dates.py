@@ -1,11 +1,11 @@
 """
 Corrige todas las referencias de 'Ene 2022' a 'Oct 2021' y '45 meses' a '48 meses'
-en el notebook 06_Prophet.ipynb, tanto en celdas source como en outputs.
+en el notebook 05_Prophet.ipynb, tanto en celdas source como en outputs.
 """
 import json
 from pathlib import Path
 
-nb_path = Path('notebooks/06_Prophet.ipynb')
+nb_path = Path('notebooks/05_Prophet.ipynb')
 nb = json.load(open(nb_path, 'r', encoding='utf-8'))
 
 # Contadores

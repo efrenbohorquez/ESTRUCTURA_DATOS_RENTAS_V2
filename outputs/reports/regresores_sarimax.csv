@@ -1,7 +1,0 @@
-﻿Variable,Pearson,Spearman,p_Pearson,VIF,Granger,Decision
-Recaudo_lag12,+0.862,+0.861,0.0000,—,—,✅ INCLUIR (SAR term)
-IPC,-0.168,-0.234,0.3066,∞,—,❌ EXCLUIR (VIF > 10)
-Salario_Min,-0.145,-0.216,0.3771,∞,—,❌ EXCLUIR (VIF > 10)
-UPC,-0.112,-0.168,0.4979,∞,p=0.4811,❌ EXCLUIR (VIF=∞ / Granger NS)
-Consumo_Hog,-0.031,+0.168,0.8514,∞,—,❌ EXCLUIR (VIF > 10)
-Desempleo,-0.183,-0.234,0.2636,∞,—,❌ EXCLUIR (VIF > 10)

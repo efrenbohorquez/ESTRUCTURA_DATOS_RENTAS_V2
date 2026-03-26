@@ -60,7 +60,7 @@ Excel Raw (149.6k registros)
 Agregación Mensual (51 meses)
     ↓ [Deflación con IPC Oct 2021 = 100]
 Serie Real (valores constantes Oct 2021)
-    ↓ [Feature Engineering § 07_XGBoost]
+    ↓ [Feature Engineering § 06_XGBoost]
 Dataset Modelado (25 características + lags)
 ```
 
@@ -266,13 +266,13 @@ outputs/reports/
         ↓
 03_Correlacion_Macro.ipynb       [Integración variables exógenas]
         ↓
-├─→ 04_SARIMA.ipynb              [Modelo 1]
-├─→ 05_SARIMAX.ipynb             [Modelo 2]
-├─→ 06_Prophet.ipynb             [Modelo 3]
-├─→ 07_XGBoost.ipynb             [Modelo 4] ← GANADOR
-└─→ 08_LSTM.ipynb                [Modelo 5]
+├─→ 04_SARIMAX.ipynb              [Modelo 1]
+├─→ 04_SARIMAX.ipynb             [Modelo 2]
+├─→ 05_Prophet.ipynb             [Modelo 3]
+├─→ 06_XGBoost.ipynb             [Modelo 4] ← GANADOR
+└─→ 07_LSTM.ipynb                [Modelo 5]
         ↓
-09_Comparacion_Modelos.ipynb     [EVALUACIÓN COMPARATIVA]
+08_Comparacion_Modelos.ipynb     [EVALUACIÓN COMPARATIVA]
         ↓ [SALIDA: Métricas consolidadas + recomendación]
 ```
 
@@ -532,7 +532,7 @@ pip install -r requirements.txt
 jupyter notebook notebooks/01_EDA_Completo.ipynb
 jupyter notebook notebooks/02_Estacionalidad.ipynb
 # … (02 through 08)
-jupyter notebook notebooks/09_Comparacion_Modelos.ipynb
+jupyter notebook notebooks/08_Comparacion_Modelos.ipynb
 
 # Salida: outputs/reports/comparacion_modelos.csv + xgboost_forecast.csv
 ```

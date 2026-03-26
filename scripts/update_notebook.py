@@ -1,7 +1,7 @@
 import nbformat as nbf
 from pathlib import Path
 
-notebook_path = Path(r'c:\Users\efren\Music\ESTRUCTURA DATOS RENTAS\notebooks\04_SARIMA_Produccion.ipynb')
+notebook_path = Path(r'c:\Users\efren\Music\ESTRUCTURA DATOS RENTAS\notebooks\04_SARIMAX_Produccion.ipynb')
 
 with open(notebook_path, 'r', encoding='utf-8') as f:
     nb = nbf.read(f, as_version=4)

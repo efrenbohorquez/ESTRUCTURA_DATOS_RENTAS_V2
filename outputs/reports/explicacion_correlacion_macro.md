@@ -1,4 +1,4 @@
-# Análisis de Correlación: Recaudo vs Variables Macroeconómicas
+Análisis de Correlación: Recaudo vs Variables Macroeconómicas
 **Tesis de Maestría — Rentas Cedidas | Periodo: Oct 2021 – Dic 2025**
 
 ---

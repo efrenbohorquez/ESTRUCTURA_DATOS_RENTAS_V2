@@ -2,7 +2,7 @@
 import json
 import os
 
-notebook_path = r'C:\Users\efren\Music\ESTRUCTURA DATOS RENTAS\notebooks\08_LSTM.ipynb'
+notebook_path = r'C:\Users\efren\Music\ESTRUCTURA DATOS RENTAS\notebooks\07_LSTM.ipynb'
 
 with open(notebook_path, 'r', encoding='utf-8') as f:
     nb = json.load(f)
@@ -105,4 +105,4 @@ for cell in nb['cells']:
 with open(notebook_path, 'w', encoding='utf-8') as f:
     json.dump(nb, f, indent=1, ensure_ascii=False)
 
-print("✅ Notebook 08_LSTM.ipynb actualizado con Diferenciación Estacional (YoY)")
+print("✅ Notebook 07_LSTM.ipynb actualizado con Diferenciación Estacional (YoY)")

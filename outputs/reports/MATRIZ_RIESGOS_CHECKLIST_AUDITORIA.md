@@ -321,12 +321,12 @@ NOTEBOOKS (9 TOTAL)
 [✅] 01_EDA_Completo.ipynb — Análisis exploratorio con validaciones
 [✅] 02_Estacionalidad.ipynb — STL, ADF, KPSS, change-point detection
 [✅] 03_Correlacion_Macro.ipynb — Integración variables exógenas
-[✅] 04_SARIMA.ipynb — Modelo SARIMA configurado
-[✅] 05_SARIMAX.ipynb — SARIMA + IPC como exógena
-[✅] 06_Prophet.ipynb — Facebook Prophet con festivos CO
-[✅] 07_XGBoost.ipynb — Gradient boosting (MODELO GANADOR)
-[✅] 08_LSTM.ipynb — Red neuronal recurrente
-[✅] 09_Comparacion_Modelos.ipynb — Evaluación comparativa
+[✅] 04_SARIMAX.ipynb — Modelo SARIMA configurado
+[✅] 04_SARIMAX.ipynb — SARIMA + IPC como exógena
+[✅] 05_Prophet.ipynb — Facebook Prophet con festivos CO
+[✅] 06_XGBoost.ipynb — Gradient boosting (MODELO GANADOR)
+[✅] 07_LSTM.ipynb — Red neuronal recurrente
+[✅] 08_Comparacion_Modelos.ipynb — Evaluación comparativa
 [✅] Todos importan 00_config.py (centralizado)
 
 REPORTES (35+ ARCHIVOS)
@@ -361,7 +361,7 @@ CONFIGURACIÓN CENTRALIZADA
 
 TEST DE REPRODUCIBILIDAD (Manual verificación)
 [✅] Ejecutar 01_EDA → produce outputs idénticos 2 veces
-[⚠️] Ejecutar 09_Comparacion → MAPE XGB 5.05% confirmado
+[⚠️] Ejecutar 08_Comparacion → MAPE XGB 5.05% confirmado
 [⚠️] Seed `np.random.seed(42)` implementado BUT no torch seed
 [⚠️] LSTM results no 100% reproducibles (GPU variability)
 ```

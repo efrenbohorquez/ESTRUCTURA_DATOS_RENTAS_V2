@@ -44,4 +44,4 @@ def tune_lstm(filepath):
         print(f"  No changes needed in {filepath}")
 
 if __name__ == "__main__":
-    tune_lstm('notebooks/08_LSTM.ipynb')
+    tune_lstm('notebooks/07_LSTM.ipynb')

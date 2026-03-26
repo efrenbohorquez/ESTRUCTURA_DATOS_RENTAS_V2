@@ -42,7 +42,7 @@ md(r"""# 02 — Análisis Avanzado de Estacionalidad y Dinámicas Temporales
 | Fase | Técnica | Objetivo |
 |------|---------|----------|
 | **I** | Correlación Cruzada (CCF) | Validar el rezago óptimo entre consumo y recaudo; confirmar hipótesis Dic→Ene, Jun→Jul |
-| **II** | Descomposición STL Avanzada | Aislar el «electrocardiograma» fiscal; evaluar transformación log1p |
+| **II** | Descomposición STL Avanzada | Aislar el perfil estacional fiscal; evaluar transformación log1p |
 | **III** | Dinámicas por Vertical | Deflactar Licores/Cigarrillos con IPC; analizar elasticidad de Juegos de Azar vs SMLV |
 | **IV** | Anomalías y Change Points | Detectar quiebres estructurales (migración ERP 2025); clasificar negativos por TipoRegistro |
 | **V** | Validación de Estacionariedad | ADF + KPSS en serie original y diferenciada $(d{=}1, D{=}1)$ |
@@ -335,7 +335,7 @@ para estabilizar la varianza antes del modelado.""")
 # CELDA 7 — STL Decomposition (Code)
 # ════════════════════════════════════════════════════════════
 code(r"""# ══════════════════════════════════════════════════════════════
-# FASE II.1 — Descomposición STL: El «Electrocardiograma» Fiscal
+# FASE II.1 — Descomposición STL: Perfil Estacional Fiscal
 # ══════════════════════════════════════════════════════════════
 
 stl = STL(serie, period=12, seasonal=13, robust=True)
@@ -373,7 +373,7 @@ for i, (titulo, datos, color, show_trend) in enumerate(componentes):
                        alpha=0.05, color=C_SECONDARY)
 
 ax.set_xlabel('Fecha', fontdict=FONT_AXIS)
-fig.suptitle('Descomposición STL — Electrocardiograma Fiscal',
+fig.suptitle('Descomposición STL — Perfil Estacional Fiscal',
              fontsize=16, fontweight='bold', y=0.98, fontfamily='serif')
 if _VIZ_THEME_LOADED:
     marca_agua(fig)
@@ -1148,7 +1148,7 @@ md(r"""---
 | Análisis | Resultado | Implicación para Modelado |
 |----------|-----------|---------------------------|
 | **CCF (Lag)** | Rezago óptimo identificado | Confirma/rechaza hipótesis Dic→Ene, Jun→Jul |
-| **STL Avanzado** | F_s cuantificado | Electrocardiograma fiscal con patrón robusto cada 12 meses |
+| **STL Avanzado** | F_s cuantificado | Perfil estacional fiscal con patrón robusto cada 12 meses |
 | **Heterocedasticidad** | Evaluación log1p | Decisión sobre transformación para SARIMA |
 | **Licores/Cigarrillos** | Crecimiento orgánico vs inflacionario | Separación efecto volumen vs precio |
 | **Juegos de Azar** | Elasticidad ingreso cuantificada | Base para pronóstico con variables exógenas |

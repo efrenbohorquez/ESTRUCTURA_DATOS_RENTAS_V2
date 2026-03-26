@@ -1,6 +1,5 @@
 Modelo,MAPE_Mensual_%,RMSE_MM,MAE_MM,Error_Trim_%,Forma_2de2,Sesgo_MM,Parsimonia,Score_Ponderado
 XGBoost,5.05,15.4,13.8,4.99,2,-13.8,Media,8.13
 Prophet,6.3,28.7,19.3,5.03,1,-13.9,Alta,14.51
-SARIMAX,13.99,42.5,39.6,2.46,1,-6.8,Alta,17.09
-SARIMA,13.99,42.5,39.6,2.46,1,-6.8,Alta,17.09
+SARIMAX,9.75,37.0,28.9,6.48,1,-17.9,Alta,16.31
 LSTM,23.52,73.5,59.6,21.6,0,59.6,Baja,44.8

@@ -11,12 +11,11 @@ notebooks_to_run = [
     "01_EDA_Completo.ipynb",
     "02_Estacionalidad.ipynb",
     "03_Correlacion_Macro.ipynb",
-    "04_SARIMA.ipynb",
-    "05_SARIMAX.ipynb",
-    "06_Prophet.ipynb",
-    "07_XGBoost.ipynb",
-    "08_LSTM.ipynb",
-    "09_Comparacion_Modelos.ipynb"
+    "04_SARIMAX.ipynb",
+    "05_Prophet.ipynb",
+    "06_XGBoost.ipynb",
+    "07_LSTM.ipynb",
+    "08_Comparacion_Modelos.ipynb"
 ]
 
 def run_notebook(nb_name):

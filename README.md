@@ -30,9 +30,8 @@ cinco modelos de pronóstico mensual:
 |---|--------|-----------|----------|
 | 1 | **XGBoost** | Gradient Boosting + SHAP | **5.05%** |
 | 2 | Prophet | Bayesiano aditivo + festivos CO | 6.30% |
-| 3 | SARIMA | Econométrico Box-Jenkins | 13.99% |
-| 4 | SARIMAX | SARIMA + variables exógenas | 13.99% |
-| 5 | LSTM | Red neuronal recurrente | 23.52% |
+| 3 | SARIMAX | SARIMA + variables exógenas (IPC) | 9.75% |
+| 4 | LSTM | Red neuronal recurrente | 23.52% |
 
 **Modelo Ganador:** XGBoost con MAPE mensual del 5.05% y error trimestral
 acumulado del 4.99% sobre el set de prueba Oct–Dic 2025.
@@ -56,12 +55,11 @@ ESTRUCTURA_DATOS_RENTAS_V2/
 │   ├── 01_EDA_Completo.ipynb         #   Análisis exploratorio de datos
 │   ├── 02_Estacionalidad.ipynb       #   STL, ADF, KPSS, change-point
 │   ├── 03_Correlacion_Macro.ipynb    #   Correlación con IPC, Salario, UPC
-│   ├── 04_SARIMA.ipynb               #   Modelo SARIMA(p,d,q)(P,D,Q)[12]
-│   ├── 05_SARIMAX.ipynb              #   SARIMA + exógenas (IPC)
-│   ├── 06_Prophet.ipynb              #   Facebook Prophet + festivos CO
-│   ├── 07_XGBoost.ipynb              #   Gradient Boosting + SHAP
-│   ├── 08_LSTM.ipynb                 #   Red LSTM con Keras/TensorFlow
-│   └── 09_Comparacion_Modelos.ipynb  #   Evaluación comparativa doctoral
+│   ├── 04_SARIMAX.ipynb              #   SARIMAX: SARIMA + exógenas (IPC)
+│   ├── 05_Prophet.ipynb              #   Facebook Prophet + festivos CO
+│   ├── 06_XGBoost.ipynb              #   Gradient Boosting + SHAP
+│   ├── 07_LSTM.ipynb                 #   Red LSTM con Keras/TensorFlow
+│   └── 08_Comparacion_Modelos.ipynb  #   Evaluación comparativa doctoral
 │
 ├── scripts/                          # Automatización y utilidades
 │   ├── build_01_eda.py … build_09_*  #   Generadores de notebooks
@@ -138,7 +136,7 @@ Los build scripts permiten regenerar cualquier notebook:
 
 ```bash
 python scripts/build_01_eda.py            # Genera 01_EDA_Completo.ipynb
-python scripts/build_09_comparacion.py    # Genera 09_Comparacion_Modelos.ipynb
+python scripts/build_08_comparacion.py    # Genera 08_Comparacion_Modelos.ipynb
 ```
 
 ---
@@ -196,7 +194,7 @@ python scripts/build_09_comparacion.py    # Genera 09_Comparacion_Modelos.ipynb
 | [Contexto de Rentas Cedidas](docs/contexto_rentas_cedidas.md) | Marco fiscal y epidemiológico |
 | [Propuesta STAR](docs/propuesta_sistema_star.md) | Sistema de Alerta y Recomendación Territorial |
 | [Evidencia y Referencias](docs/evidencia_referencias_soporte.md) | Soporte bibliográfico |
-| [Notebook 09 — Comparación](notebooks/09_Comparacion_Modelos.ipynb) | Evaluación doctoral de modelos |
+| [Notebook 09 — Comparación](notebooks/08_Comparacion_Modelos.ipynb) | Evaluación doctoral de modelos |
 
 ---
 
