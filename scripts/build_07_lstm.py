@@ -37,44 +37,69 @@ def code(source):
 # ════════════════════════════════════════════════════════════════
 # CELDA 1 — MARKDOWN: Encabezado y Arquitectura
 # ════════════════════════════════════════════════════════════════
-md(r"""# 08 — LSTM: Red Neuronal Recurrente para Pronóstico de Rentas Cedidas
+md(r"""# 08 -- LSTM: Red Neuronal Recurrente para Pronostico de Rentas Cedidas
 
-**Sistema de Análisis y Pronóstico de Rentas Cedidas** | ADRES — Colombia
+**Sistema de Analisis y Pronostico de Rentas Cedidas** | ADRES -- Colombia
 
 ---
 
-## Arquitectura Analítica
+### Por que un cuaderno dedicado a LSTM
 
-| Fase | Contenido | Método |
-|------|-----------|--------|
-| **I** | Carga, preprocesamiento y normalización | log1p + MinMaxScaler |
-| **II** | Construcción de ventanas temporales | look-back = 12 meses |
-| **III** | Arquitectura de la Red LSTM + entrenamiento | Stacked LSTM + Dropout + Early Stopping |
-| **IV** | Pronóstico Out-of-Sample | Oct–Dic 2025 vs datos reales |
-| **V** | Diagnóstico de residuos y análisis de error | Ljung-Box, Shapiro-Wilk, MAPE por mes |
-| **VI** | Comparativa vs modelos lineales y ML | SARIMAX, Prophet, XGBoost |
+Tras modelos econometricos (SARIMAX), probabilisticos (Prophet) y de Machine
+Learning (XGBoost), este cuaderno completa el espectro metodologico con
+**Deep Learning**. Las redes LSTM (Hochreiter & Schmidhuber, 1997) son el
+estandar para secuencias temporales en redes neuronales.
 
-### Justificación Metodológica
+**Pregunta central:** Una red neuronal recurrente puede superar a modelos
+mas simples cuando solo se dispone de 51 meses de datos?
 
-**¿Por qué LSTM?** Las redes Long Short-Term Memory (Hochreiter & Schmidhuber,
-1997) poseen mecanismos de compuertas (*forget gate*, *input gate*, *output gate*)
-que permiten:
+## Arquitectura Analitica
 
-  1. **Memoria selectiva** de patrones estacionales a largo plazo (12 meses).
-  2. **Olvido controlado** de ruido y anomalías puntuales.
-  3. **Integración de variables exógenas** (IPC, consumo, UPC) en la capa de entrada.
+| Fase | Contenido | Metodo | Pregunta que responde |
+|------|-----------|--------|----------------------|
+| **I** | Carga, preprocesamiento y normalizacion | log1p + MinMaxScaler | Datos listos para la red? |
+| **II** | Construccion de ventanas temporales | look-back = 12 meses | Cuanto pasado necesita ver la red? |
+| **III** | Arquitectura + entrenamiento | Stacked LSTM + Dropout + Ensemble 10x | Que red es apropiada para n=39? |
+| **IV** | Pronostico Out-of-Sample | Oct-Dic 2025 vs datos reales | Que tan preciso es con datos no vistos? |
+| **V** | Diagnostico de residuos | Ljung-Box, Shapiro-Wilk | Los errores tienen patron? |
+| **VI** | Comparativa vs modelos anteriores | SARIMAX, Prophet, XGBoost | Agrega valor el Deep Learning? |
 
-**Limitación explícita:** Con solo 51 meses de serie (Oct 2021 – Dic 2025) y
-un look-back de 12 meses, se dispone de 39 muestras efectivas — un reto para
-Deep Learning. Se mitiga con:
-  - Arquitectura ultraligera (2 capas LSTM, 64 unidades máximo).
-  - Regularización agresiva (Dropout 0.2 + Early Stopping).
-  - Semilla fija y entrenamiento determinístico para reproducibilidad.
+### Como funciona una celda LSTM (intuicion)
+
+Una celda LSTM es como un **trabajador de archivo** con 3 decisiones:
+
+| Compuerta | Pregunta que se hace | Funcion |
+|-----------|---------------------|--------|
+| **Forget gate** | Debo olvidar algo de lo que se? | Elimina informacion obsoleta |
+| **Input gate** | Que de lo nuevo es importante? | Incorpora informacion relevante |
+| **Output gate** | Que debo comunicar al siguiente paso? | Filtra la salida |
+
+Matematicamente, la celda actualiza su estado interno $C_t$ asi:
+
+$$f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \quad \text{(forget)}$$
+$$i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i) \quad \text{(input)}$$
+$$C_t = f_t \odot C_{t-1} + i_t \odot \tanh(W_C \cdot [h_{t-1}, x_t] + b_C)$$
+
+### Limitacion Fundamental: Escasez de Datos
+
+Con solo **51 meses** de serie post-pandemia, la red dispone de aproximadamente
+**39 muestras de entrenamiento efectivas** (tras aplicar look-back de 12 meses).
+Esto esta muy por debajo del umbral recomendado para LSTM ($n > 500$,
+Bengio et al., 2015).
+
+### Mitigaciones implementadas
+
+| Tecnica | Que hace | Por que es necesaria |
+|---------|----------|---------------------|
+| Arquitectura ultraligera (32+16) | Reduce parametros | Ratio muestras/params favorable |
+| Dropout 0.15 | Apaga 15% de neuronas | Evita memorizacion |
+| Ensemble 10 copias | Promedia predicciones | Reduce varianza estocastica |
+| Huber Loss | Combina MSE y MAE | Robusta a outliers ERP |
+| Early Stopping (patience=30) | Detiene entrenamiento | Evita sobreajuste |
 
 > **Nota para jurados:** Este modelo es un *benchmark* experimental de Deep
-> Learning frente a modelos estadísticos clásicos (SARIMAX, Prophet) y ML
-> (XGBoost). La escasez de datos limita su capacidad de generalización, lo cual
-> se documenta exhaustivamente en el reporte de métricas.
+> Learning. La escasez de datos limita su capacidad de generalizacion, lo cual
+> se documenta exhaustivamente en el reporte de metricas.
 
 ---
 """)
@@ -137,27 +162,30 @@ print(f"  Prueba OOS:        Oct 2025 -> Dic 2025 (3 meses)")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase I — Carga, Preprocesamiento y Normalización
+## Fase I -- Carga, Preprocesamiento y Normalizacion
 
-### Protocolo de Curaduría
+### Por que dos transformaciones (log1p + MinMaxScaler)
 
-1. **Filtro de periodo**: Se utiliza la serie completa Oct 2021 – Dic 2025
-   (51 meses). El periodo anómalo 2020 – Sep 2021 (pandemia COVID-19) ya fue
-   excluido en la etapa de limpieza del AED.
+Las redes neuronales son sensibles a la escala de los datos. Se aplican
+dos transformaciones en cascada, cada una con un proposito distinto:
 
-2. **Transformación log1p**: Estabiliza la varianza y mitiga el sesgo de
-   transacciones de gran magnitud detectadas en el análisis exploratorio.
+| Paso | Transformacion | Proposito | Formula |
+|------|---------------|----------|--------|
+| 1 | log1p | Estabilizar varianza, reducir asimetria | $y^* = \log(1 + y)$ |
+| 2 | MinMaxScaler [0,1] | Gradientes estables en sigmoide/tanh | $\tilde{x} = \frac{x - x_{min}}{x_{max} - x_{min}}$ |
 
-$$y_t^* = \log(1 + y_t)$$
+### Prevencion de Data Leakage
 
-3. **Normalización MinMaxScaler**: Escala todas las variables al rango $[0, 1]$
-   para que las compuertas de la LSTM operen con gradientes estables en la
-   función sigmoide y tangente hiperbólica.
+El scaler se ajusta **exclusivamente** sobre el conjunto de entrenamiento.
+Los datos de prueba se transforman usando los parametros del entrenamiento,
+nunca los propios. Esto simula las condiciones reales de produccion, donde
+los datos futuros son desconocidos.
 
-$$\tilde{x}_i = \frac{x_i - \min(x_{train})}{\max(x_{train}) - \min(x_{train})}$$
+$$\text{scaler.fit(X_{train})} \rightarrow \text{scaler.transform(X_{test})}$$
 
-> **Importante:** El scaler se ajusta **exclusivamente** sobre el conjunto de
-> entrenamiento para evitar *data leakage*.
+> **Importante:** Violar esta regla (ajustar el scaler sobre todo el dataset)
+> inflaria artificialmente las metricas, porque el modelo tendria informacion
+> del futuro codificada en los parametros de normalizacion.
 """)
 
 
@@ -311,28 +339,40 @@ plt.show()
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase II — Construcción de Ventanas Temporales (Look-Back)
+## Fase II -- Construccion de Ventanas Temporales (Look-Back)
 
-### Perfil Estacional Fiscal
+### Que es una ventana temporal y por que 12 meses
 
-La configuración de la ventana temporal (`look_back = 12 meses`) se fundamenta
-en la **hipótesis de estacionalidad anual** validada en el notebook 02:
+La LSTM no ve "toda la serie" de una vez. En cada paso, recibe una
+**ventana deslizante** de los ultimos 12 meses y debe predecir el
+siguiente. Es como estudiar para un examen leyendo solo las ultimas
+12 paginas del libro cada vez.
 
-- El patrón de recaudo es reproducible cada 12 meses, con picos en
-  **enero** (materialización del consumo navideño de licores y juegos) y
-  **julio** (segundo ciclo de recaudación semestral).
-- Una ventana de 12 meses permite a la red "ver" exactamente un ciclo completo
-  antes de predecir el siguiente valor.
+**Por que exactamente 12?** El patron estacional del recaudo de Rentas
+Cedidas es anual, con picos en Enero y Julio (mes vencido). Una ventana
+de 12 meses captura exactamente un ciclo completo:
+
+- La red "ve" el pico de Ene t-1 para predecir Ene t
+- La red "ve" el valle de Ago t-1 para predecir Ago t
 
 ### Estructura de las Ventanas
 
-Para cada paso temporal $t$, la entrada de la LSTM es una secuencia
-$\mathbf{X}_{t-12:t-1}$ de dimensión $(12 \times F)$ donde $F$ es el número
-de variables:
+Cada muestra es una **matriz 3D** de 12 meses x F features:
 
 $$\mathbf{X}_t = \begin{bmatrix} x_{t-12,1} & x_{t-12,2} & \cdots & x_{t-12,F} \\ x_{t-11,1} & x_{t-11,2} & \cdots & x_{t-11,F} \\ \vdots & \vdots & \ddots & \vdots \\ x_{t-1,1} & x_{t-1,2} & \cdots & x_{t-1,F} \end{bmatrix} \quad \rightarrow \quad y_t$$
 
-La etiqueta $y_t$ es el recaudo log1p normalizado del mes $t$.
+### Impacto en el tamano de muestra
+
+| Concepto | Valor | Calculo |
+|----------|-------|---------|
+| Serie total | 51 meses | Oct 2021 - Dic 2025 |
+| Look-back | 12 meses | Se "consumen" como entrada |
+| Muestras efectivas | ~39 | 51 - 12 = 39 |
+| Train efectivo | ~36 | 39 - 3 (test) |
+
+> Con solo 36 muestras de entrenamiento, la red tiene aproximadamente
+> 36 "ejemplos" para aprender el patron. Esto es insuficiente para
+> redes LSTM tipicas pero viable con la arquitectura ultraligera.
 """)
 
 
@@ -391,36 +431,52 @@ print(f"    debe ser ULTRALIGERA para evitar sobreajuste.")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase III — Arquitectura de la Red LSTM
+## Fase III -- Arquitectura de la Red LSTM
 
-### Diseño de la Red
+### Diseno de la red: por que ultraligera
 
-Dada la severa escasez de datos ($n_{train}$ < 40 muestras efectivas), se
-implementa una arquitectura **ultraligera** con regularización agresiva:
+Con solo ~36 muestras de entrenamiento, una red grande memorizaria
+los datos en vez de aprender patrones. La arquitectura se disena para
+minimizar el numero de parametros:
 
-| Capa | Tipo | Unidades | Parámetros |
-|------|------|----------|------------|
-| 1 | Input | — | `(12, F)` |
-| 2 | LSTM | 64 | `return_sequences=True` |
-| 3 | Dropout | — | rate = 0.2 |
-| 4 | LSTM | 32 | `return_sequences=False` |
-| 5 | Dropout | — | rate = 0.2 |
-| 6 | Dense | 16 | activación = ReLU |
-| 7 | Dense | 1 | activación = linear |
+| Capa | Tipo | Unidades | Rol |
+|------|------|----------|-----|
+| 1 | Input | (12, F) | Recibe la ventana temporal |
+| 2 | LSTM | 32 | Capa recurrente principal, L2(0.0005) |
+| 3 | Dropout | 0.15 | Prevenir memorizacion |
+| 4 | LSTM | 16 | Capa recurrente de refinamiento, L2(0.0005) |
+| 5 | Dropout | 0.15 | Regularizacion adicional |
+| 6 | Dense | 8 | Capa de mezcla (ReLU) |
+| 7 | Dense | 1 | Salida: prediccion normalizada |
 
-### Protocolo de Regularización
+### Ensemble de 10 Copias: por que promediar
 
-- **Dropout (0.2)**: Desactiva aleatoriamente el 20% de neuronas en cada paso
-  de entrenamiento, forzando redundancia en la representación interna.
-- **Early Stopping** (patience=30): Monitorea `val_loss`; detiene el
-  entrenamiento si no mejora en 30 épocas consecutivas. Restaura los pesos
-  del mejor modelo encontrado.
-- **ReduceLROnPlateau** (patience=15, factor=0.5): Reduce la tasa de
-  aprendizaje a la mitad si el error de validación se estanca.
-- **Regularización L2** ($\lambda = 0.001$): Penaliza los pesos grandes para
-  prevenir sobreajuste, especialmente crítico con pocas muestras.
-- **Entrenamiento determinístico**: Semilla fija en TF, NumPy y Python para
-  reproducibilidad total.
+Las redes neuronales son **estocasticas**: la misma arquitectura entrenada
+con distinta semilla produce predicciones ligeramente diferentes. En vez de
+confiar en una sola copia, se entrenan **10 copias independientes** y se
+promedia:
+
+$$\hat{y}_{ensemble} = \frac{1}{10}\sum_{k=1}^{10} \hat{y}_k$$
+
+Esto reduce la varianza de la prediccion (ley de los grandes numeros) sin
+necesitar mas datos.
+
+### Funcion de Perdida: Huber
+
+$$L_\delta(y, \hat{y}) = \begin{cases} \frac{1}{2}(y - \hat{y})^2 & \text{si } |y - \hat{y}| \leq \delta \\ \delta(|y - \hat{y}| - \frac{1}{2}\delta) & \text{si } |y - \hat{y}| > \delta \end{cases}$$
+
+Huber combina lo mejor de MSE (sensibilidad para errores pequenos) y MAE
+(robustez para errores grandes como los picos de migracion ERP).
+
+### Protocolo de Regularizacion Completo
+
+| Tecnica | Parametro | Efecto | Analogia |
+|---------|-----------|--------|----------|
+| Dropout | 0.15 | Apaga neuronas al azar | Entrenar con "vendas en algunos ojos" |
+| Early Stopping | patience=30 | Detiene si no mejora | Dejar de estudiar si no se aprende mas |
+| ReduceLROnPlateau | patience=15, 0.5x | Reduce tasa de aprendizaje | Pisar el freno al estancarse |
+| L2 Regularization | 0.0005 | Penaliza pesos grandes | Preferir explicaciones simples |
+| Semilla fija | SEED=42 | Reproducibilidad total | Mismo resultado cada vez |
 """)
 
 
@@ -428,95 +484,98 @@ implementa una arquitectura **ultraligera** con regularización agresiva:
 # CELDA 8 — CODE: Fase III — Arquitectura y entrenamiento
 # ════════════════════════════════════════════════════════════════
 code(r"""# ══════════════════════════════════════════════════════════════
-# FASE III — ARQUITECTURA LSTM Y ENTRENAMIENTO
+# FASE III — ARQUITECTURA LSTM (ENSEMBLE MULTI-SEMILLA)
 # ══════════════════════════════════════════════════════════════
 
-# -- Construccion del modelo --
-model = Sequential([
-    Input(shape=(LOOK_BACK, n_features)),
+N_ENSEMBLE = 10  # Numero de modelos en el ensamble
+SEEDS_ENS = [42 + i * 7 for i in range(N_ENSEMBLE)]
 
-    # Capa LSTM 1: captura dependencias a largo plazo
-    LSTM(64, return_sequences=True,
-         kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-    Dropout(0.2),
+def build_lstm_model(n_feat, lb):
+    # Arquitectura ultraligera: LSTM(32->16) + Huber loss
+    m = Sequential([
+        Input(shape=(lb, n_feat)),
+        LSTM(32, return_sequences=True,
+             kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        Dropout(0.15),
+        LSTM(16, return_sequences=False,
+             kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        Dropout(0.15),
+        Dense(8, activation='relu'),
+        Dense(1, activation='linear'),
+    ])
+    m.compile(optimizer=Adam(learning_rate=0.0005),
+              loss='huber', metrics=['mae'])
+    return m
 
-    # Capa LSTM 2: refina la representacion
-    LSTM(32, return_sequences=False,
-         kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-    Dropout(0.2),
-
-    # Capas densas de salida
-    Dense(16, activation='relu'),
-    Dense(1, activation='linear'),
-])
-
-# -- Compilar --
-optimizer = Adam(learning_rate=0.001)
-model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
-
-# -- Resumen de arquitectura --
+# -- Resumen de arquitectura del ensamble --
 print(f"{'='*70}")
-print(f"ARQUITECTURA LSTM - Red Neuronal Recurrente")
+print(f"ARQUITECTURA LSTM — ENSEMBLE ({N_ENSEMBLE} modelos)")
 print(f"{'='*70}")
-model.summary()
-
-n_params = model.count_params()
+_sample = build_lstm_model(n_features, LOOK_BACK)
+_sample.summary()
+n_params = _sample.count_params()
 ratio = len(X_train_seq) / n_params
-print(f"\n  Parametros totales:    {n_params:,}")
-print(f"  Muestras entrenamiento: {len(X_train_seq)}")
-print(f"  Ratio muestras/params:  {ratio:.4f}")
-if ratio < 1:
-    print(f"  ADVERTENCIA: Ratio < 1 - alto riesgo de sobreajuste")
-    print(f"    -> Regularizacion critica: Dropout + L2 + Early Stopping")
-else:
-    print(f"  Ratio aceptable para redes neuronales")
+print(f"\n  Parametros por modelo:   {n_params:,}")
+print(f"  Modelos en ensamble:     {N_ENSEMBLE}")
+print(f"  Muestras entrenamiento:  {len(X_train_seq)}")
+print(f"  Ratio muestras/params:   {ratio:.4f}")
+del _sample
 
-# -- Callbacks --
-early_stop = EarlyStopping(
-    monitor='val_loss', patience=30, restore_best_weights=True,
-    verbose=1, mode='min'
-)
+# -- Entrenamiento del ensamble --
+models = []
+histories = []
+best_epochs = []
 
-reduce_lr = ReduceLROnPlateau(
-    monitor='val_loss', patience=15, factor=0.5,
-    min_lr=1e-6, verbose=1, mode='min'
-)
-
-# -- Entrenamiento --
-# Usamos 15% del train como validacion interna para Early Stopping
 print(f"\n{'_'*70}")
-print(f"ENTRENAMIENTO EN CURSO...")
+print(f"ENTRENAMIENTO ENSEMBLE EN CURSO ({N_ENSEMBLE} modelos)...")
 print(f"{'_'*70}")
-
 t0 = time.time()
 
-history = model.fit(
-    X_train_seq, y_train_seq,
-    epochs=500,
-    batch_size=4,           # Lotes pequenos (pocas muestras)
-    validation_split=0.15,  # ~5 muestras como validacion interna
-    callbacks=[early_stop, reduce_lr],
-    verbose=0,
-    shuffle=False,          # No mezclar - respetar orden temporal
-)
+for idx, seed in enumerate(SEEDS_ENS):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+    m = build_lstm_model(n_features, LOOK_BACK)
+
+    hist = m.fit(
+        X_train_seq, y_train_seq,
+        epochs=500, batch_size=4, validation_split=0.15,
+        callbacks=[
+            EarlyStopping(monitor='val_loss', patience=30,
+                          restore_best_weights=True, verbose=0, mode='min'),
+            ReduceLROnPlateau(monitor='val_loss', patience=15,
+                              factor=0.5, min_lr=1e-6, verbose=0, mode='min'),
+        ],
+        verbose=0, shuffle=False,
+    )
+    best_ep = np.argmin(hist.history['val_loss']) + 1
+    best_epochs.append(best_ep)
+    models.append(m)
+    histories.append(hist)
+    vloss = min(hist.history['val_loss'])
+    print(f"  Modelo {idx+1:2d}/{N_ENSEMBLE} (seed={seed:3d})  "
+          f"epocas={len(hist.history['loss']):3d}  mejor={best_ep:3d}  "
+          f"val_loss={vloss:.6f}")
 
 elapsed = time.time() - t0
-best_epoch = np.argmin(history.history['val_loss']) + 1
+np.random.seed(SEED); tf.random.set_seed(SEED); random.seed(SEED)
+
+# Variables de referencia (modelo 1) para visualizacion
+model = models[0]
+history = histories[0]
+best_epoch = best_epochs[0]
 n_epochs = len(history.history['loss'])
 
 print(f"\n{'='*70}")
-print(f"ENTRENAMIENTO COMPLETADO")
+print(f"ENSEMBLE COMPLETADO")
 print(f"{'='*70}")
-print(f"  Epocas ejecutadas:     {n_epochs} / 500")
-print(f"  Mejor epoca:           {best_epoch}")
-print(f"  Loss final (train):    {history.history['loss'][-1]:.6f}")
-print(f"  Loss final (val):      {history.history['val_loss'][-1]:.6f}")
-print(f"  Loss mejor (val):      {min(history.history['val_loss']):.6f}")
-print(f"  MAE final (train):     {history.history['mae'][-1]:.6f}")
-print(f"  MAE final (val):       {history.history['val_mae'][-1]:.6f}")
-print(f"  Tiempo:                {elapsed:.1f} seg")
+print(f"  Modelos entrenados:    {N_ENSEMBLE}")
+print(f"  Mejor epoca (mediana): {int(np.median(best_epochs))}")
+print(f"  Tiempo total:          {elapsed:.1f} seg")
 
-# -- Curvas de aprendizaje --
+# -- Curvas de aprendizaje (modelo representativo) --
 fig, axes = plt.subplots(1, 2, figsize=(16, 5))
 
 # Panel 1: Loss
@@ -526,11 +585,11 @@ ax.plot(history.history['val_loss'], color=C_SECONDARY, lw=1.5, label='Validacio
 ax.axvline(best_epoch - 1, color=C_TEXT_LIGHT, ls='--', lw=1,
            label=f'Mejor epoca: {best_epoch}')
 ax.set_xlabel('Epoca', fontsize=11)
-ax.set_ylabel('MSE (Loss)', fontsize=11)
+ax.set_ylabel('Huber Loss', fontsize=11)
 ax.grid(True, alpha=0.3)
 ax.legend(fontsize=9)
 if _VIZ_THEME_LOADED:
-    titulo_profesional(ax, 'Curva de Aprendizaje - Loss',
+    titulo_profesional(ax, 'Curva de Aprendizaje - Loss (modelo 1)',
                        f'{n_epochs} epocas | Early Stop en {best_epoch}')
 else:
     ax.set_title('Curva de Aprendizaje - Loss', fontweight='bold')
@@ -547,7 +606,7 @@ ax.grid(True, alpha=0.3)
 ax.legend(fontsize=9)
 if _VIZ_THEME_LOADED:
     titulo_profesional(ax, 'Curva de Aprendizaje - MAE',
-                       f'Batch size = 4 | LR inicial = 0.001')
+                       f'Batch size = 4 | LR inicial = 0.0005')
 else:
     ax.set_title('Curva de Aprendizaje - MAE', fontweight='bold')
 
@@ -564,18 +623,26 @@ plt.show()
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase IV — Pronóstico Out-of-Sample (Oct–Dic 2025)
+## Fase IV -- Pronostico Out-of-Sample (Oct-Dic 2025)
 
-Se evalúa la capacidad predictiva del modelo LSTM sobre los **últimos 3 meses**
-del dataset (conjunto de prueba inamovible), comparando directamente con los
-valores reales observados.
+### Cadena de retransformacion
 
-### Proceso de Retransformación
+Los pronosticos se generan en espacio normalizado $[0,1]$ y deben
+recorrer 3 pasos inversos para llegar a pesos colombianos:
 
-Los pronósticos se generan en espacio normalizado $[0,1]$ y se retransforman
-mediante la cadena inversa:
+$$\hat{y}_{norm} \xrightarrow{\text{scaler}^{-1}} \hat{y}_{log} \xrightarrow{\text{expm1}} \hat{y}_{COP}$$
 
-$$\hat{y}_{pesos} = \text{expm1}\left(\text{scaler\_y}^{-1}(\hat{y}_{norm})\right)$$
+| Paso | Operacion | De | A |
+|------|-----------|-----------|---|
+| 1 | `scaler_y.inverse_transform()` | [0, 1] | Escala log1p |
+| 2 | `np.expm1()` | log1p | Pesos colombianos |
+
+### Evaluacion del ensemble
+
+El pronostico final es la **media** de las 10 copias del modelo.
+La dispersion entre las 10 predicciones indica la **incertidumbre
+estocastica** del entrenamiento: si las 10 copias coinciden, la
+prediccion es robusta; si divergen, el modelo tiene alta varianza.
 """)
 
 
@@ -586,29 +653,36 @@ code(r"""# ═══════════════════════
 # FASE IV — PRONOSTICO OUT-OF-SAMPLE (Oct-Dic 2025)
 # ══════════════════════════════════════════════════════════════
 
-# -- Prediccion sobre el conjunto de prueba --
-y_pred_scaled = model.predict(X_test_seq, verbose=0)
+# -- Prediccion ENSEMBLE sobre el conjunto de prueba --
+# Promediar predicciones de los N_ENSEMBLE modelos
+all_preds_scaled = np.array([m.predict(X_test_seq, verbose=0).flatten()
+                              for m in models])
+y_pred_scaled_mean = all_preds_scaled.mean(axis=0).reshape(-1, 1)
 
 # -- Retransformacion: normalizado -> log1p -> pesos --
-y_pred_log = scaler_y.inverse_transform(y_pred_scaled).flatten()
+y_pred_log = scaler_y.inverse_transform(y_pred_scaled_mean).flatten()
 y_test_log = scaler_y.inverse_transform(y_test_seq.reshape(-1, 1)).flatten()
 
 # Retransformar de log1p a pesos colombianos
 y_pred_pesos = np.expm1(y_pred_log)
 y_real_pesos = np.expm1(y_test_log)
 
-# -- IC 95% via MC Dropout (Gal & Ghahramani, 2016) --
-# Con Dropout activo en inferencia, cada pasada genera una prediccion diferente
-N_MC = 200
-mc_preds_scaled = np.array([model(X_test_seq, training=True).numpy().flatten()
-                            for _ in range(N_MC)])
+# -- IC 95% via MC Dropout Ensemble --
+# Combinar MC Dropout de TODOS los modelos del ensamble
+N_MC = 50  # Por modelo (total = N_MC * N_ENSEMBLE simulaciones)
+mc_all = []
+for m_ens in models:
+    mc_m = np.array([m_ens(X_test_seq, training=True).numpy().flatten()
+                     for _ in range(N_MC)])
+    mc_all.append(mc_m)
+mc_preds_scaled = np.concatenate(mc_all, axis=0)
 mc_preds_log = np.array([scaler_y.inverse_transform(p.reshape(-1, 1)).flatten()
                           for p in mc_preds_scaled])
 mc_preds_pesos = np.expm1(mc_preds_log)
 ci_low_oos = np.maximum(0, np.percentile(mc_preds_pesos, 2.5, axis=0))
 ci_high_oos = np.percentile(mc_preds_pesos, 97.5, axis=0)
 
-print(f"IC 95% (MC Dropout, {N_MC} simulaciones):")
+print(f"IC 95% (MC Dropout Ensemble, {N_MC}x{N_ENSEMBLE}={N_MC*N_ENSEMBLE} sims):")
 for i_mc, fecha_mc in enumerate(fechas_seq[test_idx]):
     print(f"  {fecha_mc.strftime('%Y-%m')}:  [{ci_low_oos[i_mc]/1e9:.1f} – {ci_high_oos[i_mc]/1e9:.1f}] MM")
 
@@ -643,8 +717,10 @@ for i, fecha in enumerate(fechas_test):
     print(f"  {fecha.strftime('%Y-%m'):<10} ${real/1e9:>13,.1f}MM  ${pred/1e9:>13,.1f}MM  "
           f"${err/1e9:>10,.1f}MM  {err_pct:>6.1f}%")
 
-# -- Prediccion sobre entrenamiento (para visualizacion) --
-y_train_pred_scaled = model.predict(X_train_seq, verbose=0)
+# -- Prediccion ENSEMBLE sobre entrenamiento (para visualizacion) --
+all_train_preds = np.array([m.predict(X_train_seq, verbose=0).flatten()
+                             for m in models])
+y_train_pred_scaled = all_train_preds.mean(axis=0).reshape(-1, 1)
 y_train_pred_log = scaler_y.inverse_transform(y_train_pred_scaled).flatten()
 y_train_pred_pesos = np.expm1(y_train_pred_log)
 y_train_real_pesos = np.expm1(
@@ -731,20 +807,26 @@ print(f"\n  Pronostico OOS guardado: lstm_forecast.csv")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase V — Diagnóstico de Residuos y Análisis de Error
+## Fase V -- Diagnostico de Residuos y Analisis de Error
 
-Se evalúa la calidad estadística de los residuos del modelo LSTM sobre
-el conjunto de **entrenamiento** para verificar:
+### Por que analizar los residuos de una red neuronal
 
-1. **Incorrelación temporal** (Ljung-Box): los residuos no deben tener
-   autocorrelación significativa.
-2. **Normalidad** (Shapiro-Wilk): los residuos deben aproximarse a una
-   distribución normal centrada en cero.
-3. **Homocedasticidad**: la varianza de los residuos debe ser constante
-   a lo largo del tiempo.
+Aunque las redes neuronales no requieren los supuestos clasicos de
+normalidad y homocedasticidad como la regresion lineal, verificar los
+residuos sigue siendo informativo:
 
-> **Nota:** Con muestras tan reducidas, las pruebas estadísticas tienen
-> bajo poder. Se interpretan como indicativos, no como conclusiones definitivas.
+| Prueba | Que evalua | Resultado ideal | Implicacion si falla |
+|--------|-----------|----------------|---------------------|
+| **Ljung-Box** | Autocorrelacion temporal | $p > 0.05$ (no hay patron) | La red no capturo toda la estructura temporal |
+| **Shapiro-Wilk** | Normalidad | $p > 0.05$ (aproximadamente normal) | Errores no simetricos |
+| **Visual (ACF)** | Patron en residuos | Sin barras significativas | Informacion no capturada |
+
+### Advertencia sobre el poder estadistico
+
+Con solo ~36 muestras de entrenamiento, las pruebas estadisticas tienen
+**poder muy limitado**. Un "no rechazo" de la hipotesis nula NO significa
+que los supuestos se cumplan -- simplemente no hay suficientes datos
+para detectar violaciones. Se interpretan como **indicativos**.
 """)
 
 
@@ -874,19 +956,31 @@ else:
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase VI — Comparativa vs Modelos Lineales y ML
+## Fase VI -- Comparativa vs Modelos Lineales y ML
 
-Se comparan las métricas OOS del LSTM frente a los modelos evaluados
-previamente: SARIMAX, Prophet y XGBoost.
+### El principio de parsimonia de Occam aplicado
 
-### Expectativa
+Se comparan las metricas OOS del LSTM frente a SARIMAX, Prophet y XGBoost.
+La expectativa es que el LSTM sea **inferior o comparable** porque:
 
-Dado que el LSTM opera con menos de 40 muestras de entrenamiento efectivas
-(insuficientes para redes profundas), se espera que su desempeño sea
-**inferior o comparable** a modelos estadísticos parsimoniosos (SARIMAX) y de
-ensamble (XGBoost). Este resultado es **epistemológicamente valioso**: demuestra
-que más complejidad algorítmica no siempre se traduce en mejor pronóstico cuando
-$n$ es pequeño (principio de parsimonia de Occam).
+1. **Datos insuficientes:** ~36 muestras vs los $n > 500$ recomendados
+2. **Patron simple:** La estacionalidad del recaudo es regular y bien
+   capturada por modelos mas simples
+3. **Principio de parsimonia:** Si un modelo simple funciona igual,
+   preferirlo sobre uno complejo
+
+### Valor epistemologico del resultado
+
+Independientemente del MAPE obtenido, incluir LSTM tiene valor academico:
+
+| Escenario | Conclusion | Valor cientifico |
+|-----------|-----------|------------------|
+| LSTM < todos | DL supera con n pequeno | Hallazgo sorprendente, publicable |
+| LSTM ~ medio | DL comparable pero mas costoso | Confirma trade-off complejidad/precision |
+| LSTM > todos | DL no funciona con n=39 | Confirma parsimonia de Occam |
+
+> Demostrar que mas complejidad algoritmica NO siempre se traduce en mejor
+> pronostico es un resultado igualmente valioso que encontrar el mejor modelo.
 """)
 
 
@@ -1009,34 +1103,39 @@ print(f"\n  Comparativa exportada: {comp_path.name}")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase VII — Pronóstico de Producción 2026
+## Fase VII -- Pronostico de Produccion 2026
 
-### Estrategia de Predicción Autoregresiva con MC Dropout
+### MC Dropout: convertir una red determinista en bayesiana
 
-Para generar el pronóstico operativo de 12 meses, se utiliza una estrategia
-de **predicción autoregresiva** (one-step-ahead iterativa):
+Normalmente, el Dropout se desactiva durante la inferencia. Pero
+Gal & Ghahramani (2016) demostraron que mantenerlo **activo** durante
+la prediccion aproxima una distribucion posterior bayesiana:
 
-1. **Reentreno con datos completos** (incluyendo Oct–Dic 2025)
-2. Para cada mes Ene–Dic 2026:
-   - Construir la ventana de 12 meses más reciente
-   - Ejecutar **200 pasadas con Dropout activo** (MC Dropout)
-   - Usar la media como pronóstico puntual y percentiles 2.5/97.5 como IC 95%
-   - Agregar la predicción al historial para alimentar el siguiente paso
+- Se ejecutan **200 pasadas** con Dropout activo
+- Cada pasada produce una prediccion ligeramente diferente
+- La **media** de las 200 predicciones = pronostico puntual
+- Los **percentiles 2.5 y 97.5** = intervalo de confianza 95%
 
-> **MC Dropout** (Gal & Ghahramani, 2016): Al mantener activo el Dropout
-> durante la inferencia, cada pasada genera una predicción ligeramente diferente.
-> El conjunto de predicciones aproxima una distribución posterior bayesiana,
-> permitiendo cuantificar la incertidumbre sin necesidad de técnicas de
-> inferencia variacional explícita.
+### Prediccion autoregresiva (one-step-ahead)
 
-### Variables Macroeconómicas 2026
+| Mes | Input (Lag 12 meses) | Prediccion |
+|-----|---------------------|------------|
+| Ene 2026 | Feb-Dic 2025 (reales) | $\hat{y}_{ene}$ |
+| Feb 2026 | Mar 2025 - Ene 2026 (11 reales + 1 predicho) | $\hat{y}_{feb}$ |
+| ... | Cada vez mas predicciones en el input | ... |
+| Dic 2026 | Ene-Nov 2026 (11 predichos + 1 real) | $\hat{y}_{dic}$ |
+
+**Riesgo:** Los errores se acumulan mes a mes. Los IC se ensanchan
+naturalmente hacia el final del horizonte.
+
+### Variables Macroeconomicas 2026
 
 | Variable | Valor Proyectado | Fuente |
 |----------|-----------------|--------|
 | IPC (%) | 5.10% | Carry-forward media 2025 |
-| Salario Mínimo (var %) | 23.00% | Decreto vigente |
-| UPC (var %) | 7.00% | Resolución ADRES |
-| Consumo Hogares (var %) | 2.50% | DANE proyección |
+| Salario Minimo (var %) | 23.00% | Decreto vigente |
+| UPC (var %) | 7.00% | Resolucion ADRES |
+| Consumo Hogares (var %) | 2.50% | DANE proyeccion |
 """)
 
 
@@ -1047,42 +1146,38 @@ code(r"""# ═══════════════════════
 # FASE VII — PRONOSTICO DE PRODUCCION 2026
 # ══════════════════════════════════════════════════════════════
 
-# -- Reentreno con todos los datos disponibles --
+# -- Reentreno ENSEMBLE con todos los datos disponibles --
 # Usamos las mismas ventanas pero incluyendo los meses de prueba
 X_full_seq, y_full_seq = X_all_seq, y_all_seq
 
-model_prod = Sequential([
-    Input(shape=(LOOK_BACK, n_features)),
-    LSTM(64, return_sequences=True,
-         kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-    Dropout(0.2),
-    LSTM(32, return_sequences=False,
-         kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-    Dropout(0.2),
-    Dense(16, activation='relu'),
-    Dense(1, activation='linear'),
-])
-model_prod.compile(optimizer=Adam(learning_rate=0.001), loss='mse', metrics=['mae'])
-
-early_stop_prod = EarlyStopping(
-    monitor='val_loss', patience=30, restore_best_weights=True,
-    verbose=0, mode='min'
-)
-reduce_lr_prod = ReduceLROnPlateau(
-    monitor='val_loss', patience=15, factor=0.5,
-    min_lr=1e-6, verbose=0, mode='min'
-)
-
-print(f"Reentrenando LSTM con {len(X_full_seq)} muestras (serie completa)...")
+models_prod = []
+print(f"Reentrenando ENSEMBLE ({N_ENSEMBLE} modelos) con {len(X_full_seq)} muestras (serie completa)...")
 t0_prod = time.time()
-model_prod.fit(
-    X_full_seq, y_full_seq,
-    epochs=500, batch_size=4, validation_split=0.15,
-    callbacks=[early_stop_prod, reduce_lr_prod],
-    verbose=0, shuffle=False,
-)
+
+for idx, seed in enumerate(SEEDS_ENS):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+    mp = build_lstm_model(n_features, LOOK_BACK)
+    mp.fit(
+        X_full_seq, y_full_seq,
+        epochs=500, batch_size=4, validation_split=0.15,
+        callbacks=[
+            EarlyStopping(monitor='val_loss', patience=30,
+                          restore_best_weights=True, verbose=0, mode='min'),
+            ReduceLROnPlateau(monitor='val_loss', patience=15,
+                              factor=0.5, min_lr=1e-6, verbose=0, mode='min'),
+        ],
+        verbose=0, shuffle=False,
+    )
+    models_prod.append(mp)
+    print(f"  Modelo prod {idx+1:2d}/{N_ENSEMBLE} completado")
+
+np.random.seed(SEED); tf.random.set_seed(SEED); random.seed(SEED)
 t1_prod = time.time()
-print(f"  Reentreno completado en {t1_prod - t0_prod:.1f} seg")
+print(f"  Reentreno ensemble completado en {t1_prod - t0_prod:.1f} seg")
 
 # -- Preparar datos para 2026 --
 # Macro 2026 fijas (sobre serie completa normalizada)
@@ -1110,7 +1205,7 @@ ci_high_2026 = []
 # Historial de y_log (valores no normalizados) para construir features
 y_log_hist = list(df_clean[TARGET_COL].values)
 
-N_MC_PROD = 200
+N_MC_PROD = 30  # Por modelo (total = N_MC_PROD * N_ENSEMBLE)
 
 for step, fecha in enumerate(fechas_2026):
     mes = fecha.month
@@ -1148,9 +1243,13 @@ for step, fecha in enumerate(fechas_2026):
     # Secuencia de entrada
     X_step = np.array(window_buffer).reshape(1, LOOK_BACK, n_features)
 
-    # MC Dropout: N_MC pasadas con Dropout activo
-    mc_preds = np.array([model_prod(X_step, training=True).numpy().flatten()[0]
-                         for _ in range(N_MC_PROD)])
+    # MC Dropout ENSEMBLE: combinar simulaciones de todos los modelos
+    mc_preds = []
+    for mp in models_prod:
+        mc_m = [mp(X_step, training=True).numpy().flatten()[0]
+                for _ in range(N_MC_PROD)]
+        mc_preds.extend(mc_m)
+    mc_preds = np.array(mc_preds)
     mc_log = np.array([scaler_y.inverse_transform(p.reshape(1, -1)).flatten()[0]
                         for p in mc_preds])
     mc_pesos = np.expm1(mc_log)
@@ -1191,8 +1290,8 @@ for y_sep in range(2022, 2027):
     ax.axvline(pd.Timestamp(f'{y_sep}-01-01'), color='grey', ls=':', lw=0.5, alpha=0.3)
 
 if _VIZ_THEME_LOADED:
-    titulo_profesional(ax, 'LSTM — Pronostico de Produccion 2026',
-                       f'Total: ${preds_2026.sum()/1e9:,.0f}MM | MC Dropout ({N_MC_PROD} simulaciones) con IC 95%')
+    titulo_profesional(ax, 'LSTM Ensemble — Pronostico de Produccion 2026',
+                       f'Total: ${preds_2026.sum()/1e9:,.0f}MM | MC Dropout Ensemble ({N_MC_PROD}x{N_ENSEMBLE} sims) con IC 95%')
     formato_pesos_eje(ax, eje='y')
     marca_agua(fig)
     guardar_figura(fig, '07_lstm_produccion_2026', OUTPUTS_FIGURES)
@@ -1241,8 +1340,8 @@ metricas_lstm = {
     'Serie_Meses': len(serie_full),
     'Muestras_Entrenamiento': len(X_train_seq),
     'Look_Back': LOOK_BACK,
-    'Epocas_Entrenadas': n_epochs,
-    'Mejor_Epoca': best_epoch,
+    'N_Ensemble': N_ENSEMBLE,
+    'Mejor_Epoca_Mediana': int(np.median(best_epochs)),
     'Parametros_Red': n_params,
     'MAPE_pct': round(mape, 2),
     'RMSE_MM_COP': round(rmse / 1e9, 1),
@@ -1265,17 +1364,18 @@ reporte.append(f'   Entrenamiento: {len(df_train)} meses (Nov 2021 - Sep 2025)')
 reporte.append(f'   Prueba OOS: {len(df_test)} meses (Oct - Dic 2025)')
 reporte.append(f'   Look-back: {LOOK_BACK} meses')
 reporte.append(f'   Variables: {len(FEATURE_COLS)} ({", ".join(FEATURE_COLS)})')
-reporte.append(f'\n2. ARQUITECTURA')
-reporte.append(f'   Capas: LSTM(64) -> Dropout(0.2) -> LSTM(32) -> Dropout(0.2) -> Dense(16, relu) -> Dense(1)')
-reporte.append(f'   Parametros: {n_params:,}')
+reporte.append(f'\n2. ARQUITECTURA (ENSEMBLE x{N_ENSEMBLE})')
+reporte.append(f'   Capas: LSTM(32) -> Dropout(0.15) -> LSTM(16) -> Dropout(0.15) -> Dense(8, relu) -> Dense(1)')
+reporte.append(f'   Parametros por modelo: {n_params:,}')
 reporte.append(f'   Ratio muestras/params: {ratio:.4f}')
-reporte.append(f'   Regularizacion: L2(0.001) + Dropout(0.2) + EarlyStopping(30)')
+reporte.append(f'   Regularizacion: L2(0.0005) + Dropout(0.15) + EarlyStopping(30)')
+reporte.append(f'   Loss: Huber (robusto a outliers)')
 reporte.append(f'\n3. ENTRENAMIENTO')
-reporte.append(f'   Epocas: {n_epochs}/{500}')
-reporte.append(f'   Mejor epoca: {best_epoch}')
+reporte.append(f'   Modelos en ensamble: {N_ENSEMBLE}')
+reporte.append(f'   Mejor epoca (mediana): {int(np.median(best_epochs))}')
 reporte.append(f'   Batch size: 4')
-reporte.append(f'   LR inicial: 0.001')
-reporte.append(f'   Tiempo: {elapsed:.1f} seg')
+reporte.append(f'   LR inicial: 0.0005')
+reporte.append(f'   Tiempo total: {elapsed:.1f} seg')
 reporte.append(f'\n4. METRICAS OOS (Oct-Dic 2025)')
 reporte.append(f'   MAPE:    {mape:.2f}%')
 reporte.append(f'   RMSE:    ${rmse/1e9:,.1f} MM COP')

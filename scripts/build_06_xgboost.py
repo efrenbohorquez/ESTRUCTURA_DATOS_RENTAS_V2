@@ -37,47 +37,70 @@ def code(source):
 # ════════════════════════════════════════════════════════════════
 # CELDA 1 — MARKDOWN: Encabezado y Arquitectura
 # ════════════════════════════════════════════════════════════════
-md(r"""# 07 — XGBoost: Gradient Boosting para Pronóstico de Rentas Cedidas
+md(r"""# 07 -- XGBoost: Gradient Boosting para Pronostico de Rentas Cedidas
 
-**Sistema de Análisis y Pronóstico de Rentas Cedidas** | ADRES — Colombia
+**Sistema de Analisis y Pronostico de Rentas Cedidas** | ADRES -- Colombia
 
 ---
 
-## Arquitectura Analítica
+### Por que un cuaderno dedicado a XGBoost
 
-| Fase | Contenido | Método |
-|------|-----------|--------|
-| **I** | Carga, Feature Engineering avanzado | Lags, calendario, macro, log1p |
-| **II** | Exploración de features y correlación | Heatmap, análisis bivariado |
-| **III** | Bayesian Optimization de hiperparámetros | Optuna + TimeSeriesSplit |
-| **IV** | Modelo final: entrenamiento y validación OOS | Oct–Dic 2025 vs real |
-| **V** | Feature Importance + SHAP | Importancia global y contribución local |
-| **VI** | Comparativa vs SARIMAX / Prophet | MAPE, RMSE, MAE head-to-head |
+Tras evaluar modelos lineales (SARIMAX, NB 04) y probabilisticos (Prophet,
+NB 05), este cuaderno introduce un paradigma fundamentalmente diferente:
+**Machine Learning basado en arboles de decision**. XGBoost (Chen & Guestrin,
+2016) no asume ninguna forma funcional entre las variables -- aprende la
+relacion directamente de los datos.
 
-### Justificación Metodológica
+**Pregunta central:** Un modelo de Gradient Boosting puede capturar
+patrones no lineales en el recaudo que SARIMAX y Prophet no detectan?
 
-**¿Por qué XGBoost?** Gradient Boosting (Chen & Guestrin, 2016) ensambla
-secuencialmente árboles de decisión "débiles", donde cada árbol corrige los
-residuos del anterior. Ventajas sobre modelos lineales (SARIMAX, Prophet):
+## Arquitectura Analitica
 
-1. **Captura no-linealidades:** Los splits de los árboles detectan umbrales
-   en el recaudo que los modelos aditivos no pueden representar.
-2. **Robustez ante outliers:** Menos sensible a picos de migración ERP
-   (Dynamics → Oracle, 2025) que SARIMAX.
-3. **Feature Importance nativa:** Cuantifica la contribución relativa de
-   cada variable macroeconómica (IPC, SMLV, UPC, Consumo_Hogares).
-4. **Eficiencia con datos medianos:** Óptimo para ~51 meses de la serie,
-   donde redes profundas (LSTM) carecen de masa crítica de datos.
+| Fase | Contenido | Metodo | Pregunta que responde |
+|------|-----------|--------|----------------------|
+| **I** | Carga, Feature Engineering avanzado | Lags, calendario, macro, log1p | Que informacion necesita el modelo? |
+| **II** | Exploracion de features y correlacion | Heatmap, analisis bivariado | Que variables son mas predictivas? |
+| **III** | Bayesian Optimization de hiperparametros | Optuna + TimeSeriesSplit | Cual es la configuracion optima? |
+| **IV** | Modelo final: entrenamiento y validacion OOS | Oct-Dic 2025 vs real | Que tan preciso es en datos no vistos? |
+| **V** | Feature Importance + SHAP | Importancia global y contribucion local | Que variables impulsan cada prediccion? |
+| **VI** | Comparativa vs SARIMAX / Prophet | MAPE, RMSE, MAE head-to-head | Supera a los modelos lineales? |
 
-**Serie completa:** Se utilizan datos desde **Oct 2021** (inicio de la serie
-disponible) hasta Dic 2025, abarcando 51 meses de observaciones mensuales
-del mercado de licores, cigarrillos y juegos de azar.
+### Como funciona XGBoost (intuicion)
 
-**Transformación log1p:** Estabiliza la varianza y captura el crecimiento
-proporcional de los picos de Ene/Jul (perfil estacional fiscal).
+Imagine un comite de "expertos debiles" (arboles de decision simples).
+Cada experto observa los errores del comite anterior y se especializa en
+corregirlos. El pronostico final es la suma de todas las correcciones:
 
-> **Validación OOS:** Train = Oct 2021 – Sep 2025 (48 meses),
-> Test = Oct – Dic 2025 (3 meses con datos **reales**).""")
+$$\hat{y} = \sum_{k=1}^{K} f_k(\mathbf{x})$$
+
+donde cada $f_k$ es un arbol de decision que minimiza:
+
+$$\mathcal{L} = \sum_i l(y_i, \hat{y}_i) + \sum_k \Omega(f_k)$$
+
+| Termino | Significado | Analogia |
+|---------|-------------|----------|
+| $l(y_i, \hat{y}_i)$ | Error de prediccion | Que tan lejos estamos del valor real |
+| $\Omega(f_k)$ | Penalizacion por complejidad | Evitar que el comite memorice en vez de aprender |
+| $K$ | Numero de arboles | Tamano del comite |
+
+### Justificacion Metodologica
+
+**Por que XGBoost despues de SARIMAX y Prophet?** Cada modelo aporta una
+perspectiva complementaria:
+
+| Modelo | Paradigma | Limitacion que XGBoost supera |
+|--------|-----------|------------------------------|
+| SARIMAX | Econometrico lineal | Asume relacion lineal entre variables |
+| Prophet | Probabilistico aditivo | No captura interacciones entre features |
+| **XGBoost** | **ML ensembles** | **Aprende umbrales y combinaciones no lineales** |
+
+**Serie completa (Oct 2021+):** A diferencia de Prophet que excluye
+Oct-Dic 2021, XGBoost utiliza la serie completa porque la ingenieria de
+features (lags, variables ciclicas) permite al modelo aprender del quiebre
+post-pandemia como un patron mas, no como ruido.
+
+> **Validacion OOS:** Train = Oct 2021 - Sep 2025 (48 meses),
+> Test = Oct - Dic 2025 (3 meses con datos **reales**).""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -228,18 +251,31 @@ print(f"\n  ✅ Ingeniería de variables completa — {len(FEATURE_COLS)} variab
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase II — Exploración de Features y Análisis de Correlación
+## Fase II -- Exploracion de Features y Analisis de Correlacion
 
-Antes del modelado, se examina la estructura de correlación entre las
-features ingenieriles y la variable objetivo $y = \log(1 + \text{Recaudo})$.
-Esto permite:
+### Por que explorar antes de modelar
+
+Un principio fundamental de Machine Learning es **conocer los datos antes
+de alimentar el algoritmo**. La exploracion de features permite:
 
 1. **Validar los lags:** Confirmar que Lag_1 y Lag_12 son los predictores
-   más fuertes (hipótesis de recaudo mes vencido + estacionalidad anual).
-2. **Detectar multicolinealidad:** Si IPC e IPC_Idx están altamente
-   correlacionados (>0.95), se retiene solo uno para evitar redundancia.
-3. **Priorizar features:** Las variables con |r| > 0.3 son candidatas
-   fuertes para el modelo.""")
+   mas fuertes (hipotesis de recaudo mes vencido + estacionalidad anual).
+2. **Detectar multicolinealidad:** Si IPC e IPC_Idx estan altamente
+   correlacionados (>0.95), la Importancia de Variables se diluye entre
+   ambos (aunque XGBoost es robusto en prediccion, no en interpretacion).
+3. **Priorizar features:** Las variables con $|r| > 0.3$ son candidatas
+   fuertes para el modelo.
+
+### Tipos de features ingenieriles
+
+| Categoria | Variables | Hipotesis que captura |
+|-----------|-----------|----------------------|
+| Lags | Lag_1, Lag_2, Lag_3, Lag_12 | Inercia mensual y memoria estacional |
+| Calendario | Mes, Trimestre, Es_Pico_Fiscal | Perfil estacional fiscal |
+| Ciclicas | Mes_sin, Mes_cos | Continuidad circular (dic a ene = cercanos) |
+| Macro | IPC, SMLV, UPC, Consumo | Factores exogenos del recaudo |
+| Tendencia | Trend, Trend_sq | Crecimiento secular |
+| Momentum | Diff_1, Diff_12 | Velocidad de cambio del recaudo |""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -517,18 +553,29 @@ print(f"\n  ✅ Hiperparámetros óptimos seleccionados")""")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase IV — Modelo Final: Entrenamiento y Validación OOS
+## Fase IV -- Modelo Final: Entrenamiento y Validacion OOS
 
-Se entrena el modelo XGBoost con los hiperparámetros óptimos sobre el
-set de train completo (Oct 2021 – Sep 2025) y se evalúa contra los datos
-**reales** de Oct–Dic 2025.
+### Protocolo de evaluacion
 
-### Protocolo de Validación
+Con los hiperparametros optimos de Fase III, se entrena el modelo final
+sobre el conjunto de entrenamiento completo y se evalua contra datos
+que el modelo **nunca vio**:
 
-1. **Entrenamiento:** XGBRegressor con `best_params` sobre `X_train` / `y_train`
-2. **Predicción OOS:** Sobre `X_test` (Oct–Dic 2025)
-3. **Retransformación:** `expm1(ŷ)` para convertir de log1p a pesos colombianos
-4. **Métricas:** MAPE, RMSE, MAE contra valores reales observados""")
+| Paso | Accion | Detalle |
+|------|--------|---------|
+| 1 | Entrenamiento | XGBRegressor con `best_params` sobre Oct 2021 - Sep 2025 |
+| 2 | Prediccion OOS | Sobre X_test (Oct-Dic 2025, 3 meses) |
+| 3 | Retransformacion | `expm1(y_pred)` para convertir de log1p a pesos COP |
+| 4 | Metricas | MAPE, RMSE, MAE contra valores reales observados |
+| 5 | Intervalos de confianza | Bootstrap de residuos (1,000 remuestreos) |
+
+### Intervalos de Confianza via Bootstrap
+
+A diferencia de SARIMAX y Prophet (que generan IC nativamente), XGBoost
+no tiene distribucion parametrica de errores. Se construyen IC al 95%
+mediante **bootstrap de residuos**: se remuestrean los errores del
+entrenamiento y se suman a las predicciones, obteniendo los percentiles
+2.5 y 97.5 de 1,000 escenarios.""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -670,22 +717,41 @@ print(f"\n  ✅ Pronóstico OOS guardado: xgboost_forecast.csv")""")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase V — Feature Importance y Análisis SHAP
+## Fase V -- Feature Importance y Analisis SHAP
 
-### Interpretabilidad del Modelo
+### Dos niveles de interpretabilidad
 
-XGBoost ofrece dos niveles de interpretación:
+Uno de los mayores retos del Machine Learning es la "caja negra": el modelo
+predice bien, pero no sabemos por que. XGBoost ofrece dos herramientas
+complementarias para abrir la caja:
 
-1. **Feature Importance (Gain):** Cuánta reducción de error aporta cada
-   variable al ser seleccionada para un split. Las variables con mayor
-   Gain tienen mayor peso predictivo global.
+| Herramienta | Pregunta que responde | Nivel |
+|-------------|----------------------|-------|
+| **Feature Importance (Gain)** | Que variables son mas importantes en general? | Global |
+| **SHAP Values** (Lundberg & Lee, 2017) | Por que el modelo predijo X para este mes especifico? | Local |
 
-2. **SHAP Values (Lundberg & Lee, 2017):** Descomposición aditiva del
-   aporte marginal de cada feature a cada predicción individual.
-   Permite responder: *"¿Por qué el modelo predijo \$313MM para Oct 2025?"*
+### Feature Importance por Gain
 
-> **Relevancia para tesis:** La Feature Importance valida empíricamente
-> la hipótesis del tutor: el IPC "va porque va" como variable prioriatria.""")
+El Gain mide cuanta reduccion de error aporta cada variable cuando se usa
+para dividir un nodo del arbol. Si el IPC tiene el mayor Gain, significa
+que las decisiones basadas en el IPC son las que mas reducen el error
+de prediccion.
+
+### SHAP: Explicacion de predicciones individuales
+
+SHAP (SHapley Additive exPlanations) descompone **cada prediccion individual**
+en la contribucion de cada variable. Basado en teoria de juegos cooperativos
+(Shapley, 1953), garantiza que las contribuciones suman exactamente la
+prediccion total:
+
+$$\hat{y}_i = \phi_0 + \sum_{j=1}^{M} \phi_j^{(i)}$$
+
+donde $\phi_0$ es el valor base (media) y $\phi_j^{(i)}$ es la contribucion
+de la feature $j$ a la prediccion del mes $i$.
+
+> **Relevancia para ADRES:** Si el IPC domina el Feature Importance, confirma
+> que el recaudo esta fuertemente ligado a la inflacion, lo cual tiene
+> implicaciones directas para la politica de rentas cedidas.""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -843,22 +909,33 @@ print(f"\n  ✅ Análisis de importancia completado")""")
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase VI — Comparativa Head-to-Head: XGBoost vs SARIMAX vs Prophet
+## Fase VI -- Comparativa Head-to-Head: XGBoost vs SARIMAX vs Prophet
 
-Se contrastan las métricas de los tres modelos evaluados hasta ahora
-sobre el **mismo periodo de validación** (Oct–Dic 2025).
+### Por que comparar sobre el mismo periodo
 
-### Criterio de Comparación
+La comparacion solo es valida si todos los modelos predicen **exactamente
+los mismos 3 meses** (Oct-Dic 2025) con datos reales. Cualquier diferencia
+en el periodo de evaluacion invalida la comparacion.
 
-| Métrica | Definición | Uso |
-|---------|-----------|-----|
-| **MAPE** | Error porcentual absoluto medio | Premier: % error relativo |
-| **RMSE** | Raíz del error cuadrático medio | Penaliza errores grandes |
-| **MAE** | Error absoluto medio | Interpretable en $MM COP |
+### Triada de metricas
 
-> **Nota:** MAPE es la métrica principal de comparación porque normaliza
-> el tamaño del error por la magnitud del recaudo, permitiendo una
-> comparación justa entre modelos.""")
+| Metrica | Formula | Unidad | Para quien es util |
+|---------|---------|--------|-------------------|
+| **MAPE** | $\frac{1}{n}\sum|\frac{y_i - \hat{y}_i}{y_i}| \times 100$ | % | Alta gerencia (error relativo) |
+| **RMSE** | $\sqrt{\frac{1}{n}\sum(y_i - \hat{y}_i)^2}$ | MM COP | Analistas (penaliza picos) |
+| **MAE** | $\frac{1}{n}\sum|y_i - \hat{y}_i|$ | MM COP | Operaciones (desvio promedio) |
+
+### Escala de interpretacion MAPE para ADRES
+
+| Rango MAPE | Calificacion | Implicacion operativa |
+|------------|-------------|----------------------|
+| < 5% | Excelente | Pronostico confiable para balance de caja |
+| 5-10% | Bueno | Margen de ajuste aceptable |
+| 10-15% | Aceptable | Requiere revision mensual |
+| > 15% | Insuficiente | No apto para decision presupuestal |
+
+> **MAPE como metrica principal:** Normaliza el error por la magnitud del
+> recaudo, lo que permite comparar periodos de distinto volumen (Oct vs Ene).""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -976,21 +1053,30 @@ print(f"\n  ✅ Tabla comparativa guardada: comparacion_xgboost_vs_lineales.csv"
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase VII — Pronóstico de Producción 2026
+## Fase VII -- Pronostico de Produccion 2026
 
-### Estrategia de Reentreno y Predicción Recursiva
+### Prediccion recursiva: que es y por que es necesaria
 
-Para el pronóstico operativo, se **reentrena** XGBoost con la serie completa
-(incluyendo Oct–Dic 2025) y se genera un pronóstico recursivo de 12 meses:
+A diferencia de Prophet (que genera los 12 meses de una sola vez), XGBoost
+necesita el valor del mes anterior (Lag_1) como input. Como no se conoce
+el recaudo futuro, se usa un esquema **one-step-ahead recursivo**:
 
-1. Reentrenar modelo con todos los datos disponibles
-2. Para cada mes Ene–Dic 2026: construir features de calendario, lags y macro
-3. Predecir en escala log1p → retransformar a pesos COP
-4. IC 95% via bootstrap de residuos de entrenamiento
+1. Predecir Enero 2026 usando Dic 2025 como Lag_1
+2. Predecir Febrero 2026 usando la **prediccion** de Enero como Lag_1
+3. Repetir hasta Diciembre 2026
 
-> **Variables macroeconómicas 2026:** Se utiliza IPC=5.10% (carry-forward),
-> SMLV=$1,750,905, UPC=7.00%, Consumo_Hogares=2.50% — proyecciones
-> oficiales/estimadas.
+**Riesgo de la recursion:** Los errores se acumulan mes a mes. Un error
+en Enero afecta a Febrero, que afecta a Marzo, etc. Los intervalos de
+confianza se ensanchan naturalmente para reflejar esta incertidumbre.
+
+### Variables macroeconomicas 2026
+
+| Variable | Valor Proyectado | Fuente | Impacto esperado |
+|----------|-----------------|--------|------------------|
+| IPC (%) | 5.10% | Carry-forward media 2025 | Crecimiento nominal base |
+| SMLV | $1,750,905 | Decreto 30-dic-2025 | Afecta impuestos al consumo |
+| UPC (var %) | 7.00% | Resolucion ADRES | Indicador de costo en salud |
+| Consumo Hogares (var %) | 2.50% | DANE proyeccion | Demanda agregada |
 """)
 
 
@@ -1191,43 +1277,35 @@ md(r"""---
 
 ## Conclusiones del Modelado XGBoost
 
-### Decisiones Metodológicas Justificadas
+### Decisiones Metodologicas Justificadas
 
-1. **Serie completa (Oct 2021+):** Se utiliza la totalidad de los datos
-   disponibles desde Oct 2021, maximizando la cantidad de observaciones
-   para entrenamiento. XGBoost se beneficia de mayor volumen de datos
-   para construir particiones más robustas en los árboles.
+| # | Decision | Justificacion | Resultado |
+|---|----------|---------------|-----------|
+| 1 | Serie completa (Oct 2021+) | Maximiza observaciones para arboles robustos | 48 meses de entrenamiento |
+| 2 | Feature Engineering (28+ vars) | Lags, ciclicas, macro, tendencia | Captura inercia y estacionalidad |
+| 3 | Transformacion log1p | Consistente con SARIMAX y Prophet | Comparabilidad directa |
+| 4 | Bayesian Optimization (Optuna) | 200 trials en espacio de 9 dimensiones | Mejor que GridSearch |
+| 5 | Validacion OOS inamovible | Oct-Dic 2025 con datos reales | Sin contaminacion de datos futuros |
 
-2. **Feature Engineering como ventaja competitiva:** La inclusión de lags
-   (Lag_1, Lag_12), variables cíclicas (sin/cos del mes) y macro variables
-   (IPC, SMLV, UPC, Consumo_Hogares) permite que XGBoost capture tanto
-   la inercia temporal como los factores exógenos del recaudo.
+### Posicion en el sistema de 4 modelos
 
-3. **Transformación log1p:** Consistente con SARIMA y Prophet, estabiliza
-   la varianza y permite que el modelo trate proporcionalmente los picos
-   de Ene/Jul (perfil estacional fiscal).
+| Modelo | Paradigma | Fortaleza |
+|--------|-----------|----------|
+| SARIMAX (NB 04) | Econometrico clasico | Interpretabilidad de coeficientes |
+| Prophet (NB 05) | Probabilistico aditivo | Changepoints automaticos |
+| **XGBoost (NB 06)** | **Machine Learning** | **No-linealidades + Feature Importance** |
+| LSTM (NB 07) | Deep Learning | Benchmark experimental |
 
-4. **Bayesian Optimization (Optuna):** Explora eficientemente el espacio
-   de 9 hiperparámetros, superando al GridSearch exhaustivo en velocidad
-   y calidad de la solución encontrada.
+### Ventajas demostradas
 
-5. **Validación OOS (Oct–Dic 2025):** Se valida exclusivamente contra
-   datos reales de los últimos 3 meses de la serie, garantizando una
-   evaluación rigurosa sin contaminación de datos futuros.
-
-### Ventajas Demostradas sobre Modelos Lineales
-
-- **Robustez ante outliers:** Los splits de los árboles segmentan mejor
-  los picos causados por la migración de sistemas ERP (2025).
-- **Feature Importance interpretable:** Cuantifica la contribución del IPC,
-  SMLV y otros factores exógenos — información directamente útil para la
-  justificación presupuestal de la ADRES.
+- **Robustez ante outliers ERP:** Los arboles particionan sin asumir linealidad
+- **Feature Importance interpretable:** Comunica a ADRES que variables impulsan el pronostico
+- **SHAP:** Explica cada prediccion individual, no solo el modelo global
 
 ### Siguiente paso
 
-→ **NB 08 (LSTM):** Red LSTM recurrente como modelo complementario
-  para capturar dependencias temporales de largo plazo.
-→ **NB 09 (Comparación):** Benchmark final de todos los modelos.""")
+-> **NB 08 (LSTM):** Red LSTM recurrente como benchmark de Deep Learning.
+-> **NB 09 (Comparacion):** Evaluacion comparativa final de los 4 modelos.""")
 
 
 # ════════════════════════════════════════════════════════════════

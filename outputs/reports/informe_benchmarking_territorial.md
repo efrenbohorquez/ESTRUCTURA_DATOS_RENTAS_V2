@@ -41,8 +41,8 @@ MARCO REGULATORIO
 3. ASIMETRIA ESTRUCTURAL
    Ratio Bogota/Choco: 18x (mediana mensual)
    Per capita literatura: $12,500 (Bog) vs $667 (Cho) = 18.7:1
-   Correlacion Gráfico Comparativo: r = 0.388
-   Diagnostico: INESTABLE (justifica Alerta Roja)
+   Correlacion estacional: r = 0.388
+   Diagnostico: ERRATICO (justifica Alerta Roja)
 
 4. DEFLACTACION Y ELASTICIDAD
    Efecto inflacion: 10.1% del nominal
@@ -70,7 +70,7 @@ MARCO REGULATORIO
    d) Deflactacion IPC obligatoria en evaluacion fiscal
    e) XGBoost (MAPE 5.05%) como motor predictivo del STAR
    f) Monitorizar elasticidad SMLV: beta=0.50 ante +23% en 2026
-   g) Alerta Roja permanente para Choco: Gráfico Comparativo inestable
+   g) Alerta Roja permanente para Choco: perfil estacional erratico
      y ratio de desigualdad > 10:1 vs Bogota
 
 ======================================================================

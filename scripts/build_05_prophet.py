@@ -30,42 +30,72 @@ def code(text):
 # ════════════════════════════════════════════════════════════
 # CELDA 1 — Título (MD)
 # ════════════════════════════════════════════════════════════
-md(r"""# 06 — Prophet: Pronóstico Estacional de Rentas Cedidas
+md(r"""# 06 -- Prophet: Pronostico Estacional de Rentas Cedidas
 
-**Sistema de Análisis y Pronóstico de Rentas Cedidas** | ADRES — Colombia
+**Sistema de Analisis y Pronostico de Rentas Cedidas** | ADRES -- Colombia
 
 ---
 
-## Arquitectura Analítica
+### Por que un cuaderno dedicado a Prophet
 
-| Fase | Contenido | Método |
-|------|-----------|--------|
-| **I** | Carga y preparación Ene 2022 – Dic 2025 | Split 45/3, transformación log1p |
-| **II** | Comparación sistemática con/sin exógenas | 5 configuraciones Prophet |
-| **III** | Validación OOS Oct–Dic 2025 | Pronóstico vs datos REALES, MAPE/RMSE/MAE |
-| **IV** | Descomposición de componentes | Tendencia + Estacionalidad + Changepoints |
-| **V** | Pronóstico de producción 2026 | Reentreno completo + 12 meses |
+Prophet (Taylor & Letham, 2018) es un modelo de series de tiempo desarrollado
+por Facebook/Meta disenado para series con **estacionalidad fuerte** y
+**cambios de tendencia**. A diferencia de SARIMAX (NB 04), Prophet no requiere
+que la serie sea estacionaria y detecta automaticamente puntos de cambio
+en la tendencia, lo que lo hace especialmente robusto ante quiebres como
+la migracion ERP Dynamics a Oracle en 2025.
 
-### Justificación Metodológica
+**Pregunta central:** Un modelo probabilistico aditivo puede igualar o
+superar a un SARIMAX clasico en el pronostico de Rentas Cedidas?
 
-**Periodo de análisis:** Ene 2022 – Sep 2025 (45 meses) como entrenamiento.
+## Arquitectura Analitica
+
+| Fase | Contenido | Metodo | Pregunta que responde |
+|------|-----------|--------|----------------------|
+| **I** | Carga y preparacion Ene 2022 - Dic 2025 | Split 45/3, transformacion log1p | Datos listos para modelado? |
+| **II** | Comparacion sistematica con/sin exogenas | 5 configuraciones Prophet | Las variables macro mejoran la prediccion? |
+| **III** | Validacion OOS Oct-Dic 2025 | Pronostico vs datos REALES, MAPE/RMSE/MAE | Que tan preciso es con datos no vistos? |
+| **IV** | Descomposicion de componentes | Tendencia + Estacionalidad + Changepoints | Como descompone Prophet la serie? |
+| **V** | Pronostico de produccion 2026 | Reentreno completo + 12 meses | Cual es la proyeccion operativa? |
+
+### Modelo matematico de Prophet
+
+Prophet descompone la serie en tres componentes aditivos:
+
+$$y(t) = g(t) + s(t) + h(t) + \varepsilon_t$$
+
+| Componente | Significado | En rentas cedidas |
+|------------|-------------|-------------------|
+| $g(t)$ | Tendencia (lineal o logistica) | Crecimiento base del recaudo |
+| $s(t)$ | Estacionalidad (series de Fourier) | Picos Ene/Jul por mes vencido |
+| $h(t)$ | Efectos de regresores externos | IPC, Consumo, SMLV, UPC |
+| $\varepsilon_t$ | Ruido (no modelado) | Variabilidad no explicada |
+
+### Justificacion Metodologica
+
+**Periodo de analisis:** Ene 2022 - Sep 2025 (45 meses) como entrenamiento.
 Se excluye Oct-Dic 2021 por constituir un quiebre estructural (datos planos
 post-pandemia que rompen la estacionalidad reproducible del mercado de
 licores, cigarrillos y juegos de azar).
 
-**Transformación log1p:** La serie presenta asimetría y variabilidad importante
-(CV ≈ 0.34). Se aplica log1p antes del modelado: dado que Prophet es un modelo
+**Transformacion log1p:** La serie presenta asimetria y variabilidad importante
+(CV aprox 0.34). Se aplica log1p antes del modelado: dado que Prophet es un modelo
 aditivo por defecto, el uso de logs permite capturar de forma efectiva una
 estacionalidad multiplicativa, donde los picos de enero y julio crecen
 proporcionalmente al volumen del recaudo.
 
-**Verificación de exógenas:** Se comparan 5 configuraciones de Prophet
-(sin exógenas, con IPC, con Consumo_Hogares, combinaciones) para determinar
-empíricamente si los regresores exógenos mejoran la precisión. Si no aportan,
+**Por que log1p convierte aditivo en multiplicativo:**
+$$\log(y_t) = g(t) + s(t) \implies y_t = e^{g(t)} \cdot e^{s(t)}$$
+El modelo estima componentes aditivos en escala log, pero al retransformar
+se obtiene una relacion multiplicativa en escala original.
+
+**Verificacion de exogenas (5 configuraciones):** Se comparan sistematicamente
+5 configuraciones de Prophet para determinar empiricamente si los regresores
+exogenos mejoran la precision. Si no aportan (mejora menor a 1 pp MAPE),
 se utiliza el modelo base puro (principio de parsimonia).
 
 > **Perfil Estacional:** Los picos de Ene y Jul reflejan el
-> mecanismo de recaudo mes vencido. Prophet captura automáticamente
+> mecanismo de recaudo mes vencido. Prophet captura automaticamente
 > esta estacionalidad anual con changepoints adaptativos.
 """)
 
@@ -304,11 +334,30 @@ print(f"\n  ✅ Ganador: {winner['Config']} | MAPE = {winner['MAPE']:.2f}%")
 # ════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase III — Validación Out-of-Sample: Oct–Dic 2025 vs Datos Reales
+## Fase III -- Validacion Out-of-Sample: Oct-Dic 2025 vs Datos Reales
 
-Comparación detallada del pronóstico del modelo ganador contra
-los valores **realmente observados** en el último trimestre de 2025.
-La validación OOS es el criterio definitivo de capacidad predictiva.
+### Que significa validacion OOS en la practica
+
+La validacion Out-of-Sample (OOS) consiste en reservar datos que el modelo
+**nunca vio** durante el entrenamiento y comparar sus predicciones contra
+la realidad. Es el equivalente a un "examen sorpresa" para el modelo:
+
+- **In-sample** (entrenamiento): El modelo puede haber "memorizado" los datos
+- **Out-of-sample** (prueba): Solo un modelo que genuinamente aprendio
+  los patrones puede predecir datos nuevos con precision
+
+### Por que exactamente Oct-Dic 2025
+
+Estos 3 meses son los datos **reales mas recientes** disponibles al momento
+del analisis. Usar datos reales (no simulados) como test set es la forma
+mas rigurosa de evaluar capacidad predictiva.
+
+| Aspecto | Detalle |
+|---------|--------|
+| Periodo OOS | Oct, Nov, Dic 2025 (3 meses) |
+| Naturaleza | Datos reales observados, no simulados |
+| Consistencia | Mismo periodo para SARIMAX, Prophet, XGBoost y LSTM |
+| Metrica principal | MAPE (error porcentual, interpretable para gerencia) |
 """)
 
 
@@ -424,12 +473,29 @@ print(f"\n  ✅ Pronóstico OOS guardado: prophet_forecast.csv")
 # ════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase IV — Descomposición de Componentes y Ranking de Configuraciones
+## Fase IV -- Descomposicion de Componentes y Ranking de Configuraciones
 
-Prophet descompone la serie en:
-- **Tendencia:** Trayectoria base con changepoints automáticos
-- **Estacionalidad anual:** El perfil estacional fiscal (picos Ene/Jul)
-- **Regresores** (si aplica): Efecto marginal de variables exógenas
+### Que significa "descomponer" una serie temporal
+
+Descomponer es separar la serie observada en partes interpretables. Es como
+separar una cancion en voz, guitarra y bateria: cada componente tiene sentido
+por si solo, y juntos reconstruyen la senal original.
+
+Prophet descompone la serie en componentes aditivos:
+
+| Componente | Que captura | Interpretacion para ADRES |
+|------------|-------------|---------------------------|
+| **Tendencia** | Trayectoria de largo plazo | Crecimiento base del recaudo anual |
+| **Estacionalidad** | Patron ciclico anual | Picos Ene/Jul por mes vencido |
+| **Changepoints** | Quiebres en la tendencia | Eventos como COVID o migracion ERP |
+| **Regresores** | Efecto de variables externas | Contribucion marginal de IPC, Consumo, etc. |
+
+### Changepoints: que son y por que importan
+
+Un changepoint es un momento donde la **pendiente** de la tendencia cambia.
+Prophet los detecta automaticamente usando una distribucion de Laplace:
+los changepoints con $|\delta_j|$ grande indican cambios de tendencia
+significativos (e.g., inicio de pandemia, migracion de sistema contable).
 """)
 
 
@@ -511,14 +577,32 @@ plt.show()
 # ════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase V — Pronóstico de Producción 2026
+## Fase V -- Pronostico de Produccion 2026
 
-Se reentrena el modelo ganador con **toda la serie disponible**
-(Ene 2022 – Dic 2025, 48 meses) para generar el pronóstico de producción
-de 12 meses (Ene – Dic 2026).
+### Estrategia de reentreno completo
 
-> **Nota:** El pronóstico se genera en escala log1p y se retransforma
-> a pesos colombianos mediante `expm1()` para interpretación directa.
+Para el pronostico operativo se reentrena el modelo ganador con **toda la
+serie disponible** (Ene 2022 - Dic 2025, 48 meses), incluyendo los 3 meses
+que antes se reservaron para validacion.
+
+**Por que reentrenar?** El modelo validado en Fase III demostro su capacidad
+predictiva. Ahora, al incluir Oct-Dic 2025 en el entrenamiento, el modelo
+tiene 3 meses adicionales de informacion reciente, lo que mejora la
+estimacion de la tendencia mas actual.
+
+### Cadena de retransformacion
+
+El pronostico pasa por 3 etapas antes de llegar a pesos colombianos:
+
+$$\hat{y}_{log} \xrightarrow{\text{Prophet}} \hat{y}_{log,pred} \xrightarrow{expm1} \hat{y}_{COP}$$
+
+1. Prophet genera prediccion en escala log1p
+2. Se aplica `expm1()` (inversa de log1p) para volver a escala original
+3. Los intervalos de confianza se retransforman de la misma manera
+
+> **Nota:** Los intervalos de confianza nativos de Prophet (80% y 95%)
+> se ensanchan conforme aumenta el horizonte de prediccion, reflejando
+> la incertidumbre creciente al proyectar mas lejos en el futuro.
 """)
 
 
@@ -693,29 +777,37 @@ md(r"""---
 
 ## Conclusiones del Modelado Prophet
 
-### Decisiones Metodológicas Justificadas
+### Decisiones Metodologicas Justificadas
 
-1. **Verificación empírica de exógenas:** La comparación sistemática de 5
-   configuraciones determina objetivamente si IPC, SMLV, UPC y Consumo_Hogares
-   mejoran la predicción. Si la mejora en MAPE es < 1 pp, se aplica el
-   principio de parsimonia y se descarta la complejidad adicional.
+| # | Decision | Justificacion | Referencia |
+|---|----------|---------------|------------|
+| 1 | Verificacion empirica de exogenas (5 configs) | Determina si las variables macro mejoran MAPE > 1 pp | Principio de parsimonia |
+| 2 | Transformacion log1p | Convierte estacionalidad multiplicativa en aditiva | Consistente con NB 04 |
+| 3 | Changepoints conservadores (0.05) | Evita sobreajuste a migracion ERP 2025 | Taylor & Letham (2018) |
+| 4 | Validacion OOS inamovible | Oct-Dic 2025 con datos REALES confirmados | Protocolo del sistema |
 
-2. **Transformación log1p:** Convierte la estacionalidad multiplicativa
-   (picos proporcionales al volumen) en aditiva, facilitando la estimación
-   robusta de Prophet. Consistente con el enfoque de SARIMAX.
+### Sintesis narrativa
 
-3. **Changepoints conservadores:** `changepoint_prior_scale=0.05` evita
-   sobreajuste a picos artificiales derivados de la migración ERP
-   (Dynamics → Oracle) durante 2025.
+Prophet ofrece una ventaja clave respecto a SARIMAX: **no requiere que la
+serie sea estacionaria** y detecta automaticamente cambios de tendencia.
+Sin embargo, al ser un modelo esencialmente aditivo (incluso con regresores),
+puede no capturar interacciones no lineales entre variables macro y el
+recaudo. Esta limitacion motiva la exploracion del siguiente modelo.
 
-4. **Validación inamovible:** Oct–Dic 2025 como test set permite comparar
-   el pronóstico con datos REALES observados, no simulados.
+### Posicion en el sistema de 4 modelos
+
+| Modelo | Paradigma | Fortaleza principal |
+|--------|-----------|--------------------|
+| SARIMAX (NB 04) | Econometrico clasico | Interpretabilidad de coeficientes |
+| **Prophet (NB 05)** | **Probabilistico aditivo** | **Changepoints + estacionalidad automatica** |
+| XGBoost (NB 07) | Machine Learning | No-linealidades, interacciones |
+| LSTM (NB 08) | Deep Learning | Benchmark experimental |
 
 ### Siguiente paso
 
-→ **NB 07 (XGBoost):** Modelado basado en árboles con features de calendario
-  y regresores lag, para capturar no-linealidades que los modelos lineales
-  (SARIMAX, Prophet) no detectan.
+-> **NB 07 (XGBoost):** Modelado basado en arboles con features de calendario
+y regresores lag, para capturar no-linealidades que los modelos lineales
+(SARIMAX, Prophet) no detectan.
 """)
 
 

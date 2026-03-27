@@ -151,21 +151,32 @@ md(r"""---
 
 ## Fase II — Identificación de Orden Óptimo $(p,d,q)(P,D,Q)_{12}$
 
-### Metodología Box-Jenkins
+### Metodología Box-Jenkins (1970)
 
-1. **ACF/PACF** sobre la serie log1p para identificación visual de $p$, $q$,
-   $P$, $Q$.
-2. **`auto_arima`** (pmdarima) para búsqueda automatizada por AIC/BIC con
-   estacionalidad $m=12$.
-3. Los órdenes de diferenciación $d$, $D$ se determinan por tests ADF/KPSS
-   (realizados en notebook 02).
+El proceso de identificación de orden sigue tres pasos clásicos:
 
-### Criterio de Selección
+1. **ACF (Autocorrelación)**: Muestra la correlación de la serie consigo misma
+   a diferentes rezagos. Un corte abrupto en lag $q$ sugiere un componente MA($q$).
+   Picos en lags 12, 24 confirman estacionalidad anual.
+2. **PACF (Autocorrelación Parcial)**: Muestra la correlación *neta* de cada
+   rezago, descontando los intermedios. Un corte abrupto en lag $p$ sugiere AR($p$).
+3. **`auto_arima`**: Búsqueda automática que prueba combinaciones de $(p,d,q)$
+   y $(P,D,Q)_{12}$, seleccionando por AIC mínimo.
 
-Se usa AIC ($-2\ln L + 2k$) como criterio primario, complementado con BIC
-para penalizar sobre-parametrización. El principio de parsimonia guía la
-elección: entre modelos con AIC similar (Δ < 2), se elige el más simple.
-""")
+### Reglas de Identificación
+
+| Patrón en ACF | Patrón en PACF | Modelo sugerido |
+|---------------|----------------|----------------|
+| Decaimiento exponencial | Corte en lag $p$ | AR($p$) |
+| Corte en lag $q$ | Decaimiento exponencial | MA($q$) |
+| Decaimiento | Decaimiento | ARMA($p$,$q$) |
+| Pico en lag 12 | Pico en lag 12 | SAR(1) o SMA(1) |
+
+### Criterios de Selección
+
+- **AIC** = $-2\ln L + 2k$: Criterio primario, balancea ajuste vs complejidad
+- **BIC** = $-2\ln L + k\ln n$: Más conservador, penaliza más los parámetros
+- **Principio de parsimonia**: Entre modelos con $\Delta AIC < 2$, elegir el más simple""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -268,6 +279,14 @@ md(r"""---
 
 ## Fase IV — Validación Out-of-Sample: Oct–Dic 2025
 
+### Qué significa validación OOS
+
+La validación Out-of-Sample (*fuera de la muestra*) es la prueba ácida de
+cualquier modelo predictivo. El modelo **nunca vio** los datos de Oct–Dic 2025
+durante el entrenamiento. Comparar sus predicciones contra los valores reales
+es equivalente a "viajar al futuro": el modelo hizo su apuesta y ahora
+verificamos si acertó.
+
 ### Protocolo de Backtesting
 
 El modelo se entrena **solo** con datos hasta Sep 2025 y genera pronósticos
@@ -276,12 +295,16 @@ para los 3 meses siguientes (Oct–Dic 2025). Estos se comparan con los valores
 
 ### Métricas de Evaluación
 
-| Métrica | Fórmula | Utilidad ADRES |
-|---------|---------|----------------|
-| **MAPE** | $\frac{1}{n}\sum\frac{|y_i - \hat{y}_i|}{y_i} \times 100$ | Comunicar precisión a gerencia |
-| **RMSE** | $\sqrt{\frac{1}{n}\sum(y_i - \hat{y}_i)^2}$ | Penalizar errores grandes en picos |
-| **MAE** | $\frac{1}{n}\sum|y_i - \hat{y}_i|$ | Desvío promedio en pesos colombianos |
-""")
+| Métrica | Fórmula | Unidad | Utilidad ADRES |
+|---------|---------|---------|--------------|
+| **MAPE** | $\frac{1}{n}\sum\frac{|y_i - \hat{y}_i|}{y_i} \times 100$ | % | Comunicar precisión a gerencia |
+| **RMSE** | $\sqrt{\frac{1}{n}\sum(y_i - \hat{y}_i)^2}$ | COP | Penalizar errores grandes (picos Ene/Jul) |
+| **MAE** | $\frac{1}{n}\sum|y_i - \hat{y}_i|$ | COP | Desvío promedio en pesos colombianos |
+
+**Por qué tres métricas y no una?** MAPE comunica bien pero falla con valores
+cercanos a cero. RMSE penaliza errores grandes pero sufre con outliers.
+MAE es robusto pero no distingue errores pequeños de grandes. Juntas dan
+una visión completa.""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -394,17 +417,28 @@ md(r"""---
 
 ## Fase V — Diagnóstico de Residuos
 
+### Por qué importan los residuos
+
+Los residuos = Real $-$ Predicho son la *información que el modelo no
+capturó*. Si los residuos muestran patrones (autocorrelación, tendencia,
+heteroscedasticidad), significa que hay estructura predecible que el modelo
+está desperdiciando.
+
 ### Tests Estadísticos
 
-| Test | Hipótesis Nula | Criterio de Aceptación |
-|------|---------------|------------------------|
-| **Ljung-Box** | Residuos son ruido blanco | $p > 0.05$ |
-| **Shapiro-Wilk** | Residuos son normales | $p > 0.05$ |
-| **Durbin-Watson** | No autocorrelación de primer orden | Valor cercano a 2.0 |
+| Test | Qué evalúa | Hipótesis Nula | Criterio |
+|------|-----------|---------------|----------|
+| **Ljung-Box** | Autocorrelación | Residuos son ruido blanco | $p > 0.05$: OK |
+| **Shapiro-Wilk** | Normalidad | Residuos son normales | $p > 0.05$: OK |
+| **Durbin-Watson** | Autocorrelación lag-1 | No hay autocorrelación | DW $\approx 2.0$: OK |
+| **ARCH LM** | Heterocedasticidad | Varianza constante | $p > 0.05$: OK |
 
-Si los residuos no cumplen los supuestos, el modelo captura la estructura
-pero los intervalos de confianza pueden ser imprecisos.
-""")
+### Interpretación del QQ-Plot
+
+El gráfico QQ compara los cuantiles de los residuos contra los cuantiles
+teóricos de una distribución normal. Si los puntos siguen la línea diagonal,
+los residuos son normales. Desviaciones en las colas indican valores extremos
+más frecuentes de lo esperado (*colas pesadas*).""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -504,16 +538,25 @@ md(r"""---
 
 Para el pronóstico operativo, se **reentrena** el modelo con la serie
 completa (incluyendo Oct–Dic 2025) y se proyecta 12 meses (Ene–Dic 2026).
+Esto maximiza la información disponible para el modelo.
 
-Los valores de IPC para 2026 se toman del carry-forward del último dato real
-(dic-2025: 5.10%), interpolado mensualmente con `IPC_Idx`.
+### Proyección de la Exógena IPC
+
+Como el IPC de 2026 aún no se conoce, se utiliza la proyección del
+Banco de la República (5.10% anual), interpolada mensualmente:
+
+$$IPC\_Idx_{m+1} = IPC\_Idx_m \times (1 + \frac{0.051}{12})$$
+
+Esta es una limitación inherente a los modelos con exógenas: la precisión
+del pronóstico depende de la precisión de la proyección de las variables
+externas.
 
 ### Intervalos de Confianza
 
-Se reportan IC al 95%, que reflejan la incertidumbre del modelo.
-El ancho del intervalo crece con el horizonte, lo que es una propiedad
-natural de los modelos SARIMA.
-""")
+Se reportan IC al 95%. Su ancho crece con el horizonte porque la
+incertidumbre se acumula: predecir enero 2026 es más fácil que predecir
+diciembre 2026. Esto es una propiedad natural de los modelos SARIMA,
+no un defecto.""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -630,24 +673,24 @@ md(r"""---
 
 ### Fortalezas
 
-| Aspecto | Descripción |
-|---------|-------------|
-| **Interpretabilidad** | Coeficientes econométricos directamente interpretables |
-| **Variables exógenas** | IPC captura efecto inflacionario sobre impuestos ad valorem |
-| **Marco teórico** | Box-Jenkins con décadas de respaldo en series económicas |
-| **Intervalos** | IC analíticos derivados de la distribución del modelo |
+| Aspecto | Descripción | Relevancia para ADRES |
+|---------|-------------|----------------------|
+| **Interpretabilidad** | Coeficientes directamente interpretables | La gerencia entiende qué impulsa el pronóstico |
+| **Variables exógenas** | IPC captura efecto inflacionario | Impuestos *ad valorem* modelados explícitamente |
+| **Marco teórico** | Box-Jenkins (1970) | Respaldo académico y regulatorio |
+| **Intervalos analíticos** | IC derivados de la distribución del modelo | Cuantificación formal de incertidumbre |
 
 ### Limitaciones
 
-| Aspecto | Descripción |
-|---------|-------------|
-| **Linealidad** | Relaciones no lineales (picos extremos) no se capturan completamente |
-| **Estacionariedad** | Requiere diferenciación que puede distorsionar señal original |
-| **N limitada** | 45-48 meses puede ser insuficiente para estacionalidad compleja |
+| Aspecto | Descripción | Cómo se mitiga |
+|---------|-------------|----------------|
+| **Linealidad** | No captura relaciones no lineales | Prophet y XGBoost complementan |
+| **Estacionariedad** | Requiere diferenciación | Transformación log1p reduce heterocedasticidad |
+| **N limitada** | 45 meses puede ser insuficiente | Ensemble multi-modelo reduce riesgo |
 
 ### Siguiente Paso
 
-→ `05_Prophet.ipynb` — Modelo bayesiano aditivo con changepoints
+$\rightarrow$ `05_Prophet.ipynb` — Modelo bayesiano aditivo con changepoints
 adaptativos para capturar quiebres estructurales no lineales.
 """)
 

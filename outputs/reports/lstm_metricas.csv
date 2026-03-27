@@ -1,2 +1,2 @@
-Modelo,Serie_Meses,Muestras_Entrenamiento,Look_Back,Epocas_Entrenadas,Mejor_Epoca,Parametros_Red,MAPE_pct,RMSE_MM_COP,MAE_MM_COP,MAE_Rel_pct
-LSTM,51,35,12,83,53,31905,23.52,73.5,59.6,21.6
+Modelo,Serie_Meses,Muestras_Entrenamiento,Look_Back,N_Ensemble,Mejor_Epoca_Mediana,Parametros_Red,MAPE_pct,RMSE_MM_COP,MAE_MM_COP,MAE_Rel_pct
+LSTM,51,35,12,10,66,8657,13.58,39.7,35.3,12.8

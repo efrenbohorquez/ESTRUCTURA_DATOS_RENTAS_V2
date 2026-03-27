@@ -37,15 +37,29 @@ md(r"""# 02 — Análisis Avanzado de Estacionalidad y Dinámicas Temporales
 
 ---
 
+### ¿Por qué un notebook dedicado a la estacionalidad?
+
+El notebook 01 (EDA) reveló un patrón estacional claro con picos en enero y julio.
+Sin embargo, para construir modelos predictivos confiables necesitamos ir más allá
+de la detección visual y responder preguntas críticas:
+
+- **¿Cuál es el rezago exacto** entre el consumo de bienes gravados y el recaudo?
+  (i.e., ¿el recaudo de enero refleja el consumo de diciembre o de enero?)
+- **¿La estacionalidad es estable** o evoluciona con el tiempo?
+- **¿Las verticales de negocio** (licores, cigarrillos, juegos de azar) tienen
+  dinámicas estacionales distintas?
+- **¿La migración del ERP en 2025** introdujo quiebres artificiales?
+- **¿Qué parámetros de diferenciación** ($d$, $D$) requiere SARIMAX?
+
 ## Arquitectura Analítica
 
-| Fase | Técnica | Objetivo |
-|------|---------|----------|
-| **I** | Correlación Cruzada (CCF) | Validar el rezago óptimo entre consumo y recaudo; confirmar hipótesis Dic→Ene, Jun→Jul |
-| **II** | Descomposición STL Avanzada | Aislar el perfil estacional fiscal; evaluar transformación log1p |
-| **III** | Dinámicas por Vertical | Deflactar Licores/Cigarrillos con IPC; analizar elasticidad de Juegos de Azar vs SMLV |
-| **IV** | Anomalías y Change Points | Detectar quiebres estructurales (migración ERP 2025); clasificar negativos por TipoRegistro |
-| **V** | Validación de Estacionariedad | ADF + KPSS en serie original y diferenciada $(d{=}1, D{=}1)$ |
+| Fase | Técnica | Objetivo | Output principal |
+|------|---------|----------|------------------|
+| **I** | Correlación Cruzada (CCF) | Validar el rezago óptimo entre consumo y recaudo | Lag óptimo (Dic→Ene, Jun→Jul) |
+| **II** | Descomposición STL Avanzada | Aislar el perfil estacional fiscal | $F_s$ (fuerza estacional), decisión log1p |
+| **III** | Dinámicas por Vertical | Deflactar y analizar elasticidades | Crecimiento orgánico vs inflacionario |
+| **IV** | Anomalías y Change Points | Detectar quiebres (migración ERP 2025) | Dummies para SARIMAX |
+| **V** | Validación de Estacionariedad | ADF + KPSS en 4 variantes | Parámetros $d$, $D$ para SARIMAX |
 
 > **Dependencia**: Requiere `serie_mensual.csv` generado por `01_EDA_Completo.ipynb`.""")
 
@@ -100,14 +114,30 @@ md(r"""---
 > *El recaudo de enero refleja el consumo masivo de diciembre; el de julio,
 > el gasto de vacaciones y primas de junio.*
 
-Para validar esta hipótesis se emplean dos técnicas:
+Esta hipótesis se basa en el **ciclo presupuestal colombiano**: los impuestos
+al consumo (licores, cerveza, cigarrillos) se causan en el mes de la venta pero
+se transfieren a ADRES con 1-2 meses de rezago contable. Así, el consumo
+masivo de diciembre (fiestas navideñas, primas) se materializa como recaudo en enero.
 
-1. **Correlación Cruzada (CCF)** entre el recaudo y variables proxy de consumo
-   (Consumo_Hogares interpolado, IPC), identificando el rezago estadístico
-   óptimo (Lag 1 o Lag 2).
-2. **Heatmap de autocorrelación por mes**, que revela la estructura de
-   dependencia temporal específica para cada mes del calendario y confirma
-   si Ene y Jul dependen del mes inmediatamente anterior.""")
+### ¿Qué es la Correlación Cruzada (CCF)?
+
+La **CCF** (Cross-Correlation Function) mide la correlación entre dos series
+temporales a diferentes rezagos (lags). Si $X_t$ es el consumo y $Y_t$ el
+recaudo, la CCF en lag $k$ es:
+
+$$\text{CCF}(k) = \text{Corr}(X_{t-k},\; Y_t)$$
+
+- **Lag negativo ($k < 0$):** $X$ *lidera* $Y$ (el consumo anticipa el recaudo).
+- **Lag positivo ($k > 0$):** $Y$ *lidera* $X$ (el recaudo anticipa el consumo).
+- **Lag 0:** Relación contemporánea.
+
+La banda de confianza al 95% (intervalo de Bartlett: $\pm 1.96/\sqrt{n}$)
+identifica correlaciones estadísticamente significativas.
+
+Para validar la hipótesis se emplean dos técnicas:
+1. **CCF entre recaudo y consumo/IPC**, identificando el lag óptimo.
+2. **Heatmap de autocorrelación por mes**, que revela si Ene y Jul dependen
+   del mes inmediatamente anterior.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 4 — CCF Analysis (Code)
@@ -310,26 +340,40 @@ md(r"""---
 
 ## Fase II — Descomposición Estacional Avanzada (STL)
 
-### Descomposición STL (Seasonal-Trend using Loess)
+### ¿Por qué STL en lugar de la descomposición clásica?
 
-Cleveland et al. (1990) proponen:
+En el notebook 01 usamos la descomposición clásica (`seasonal_decompose`), que
+asume que la estacionalidad es **idéntica todos los años**. Esto es una
+simplificación fuerte: en la realidad, la estacionalidad puede evolucionar
+(e.g., cambios regulatorios, nuevos impuestos).
+
+**STL** (Seasonal-Trend decomposition using Loess), propuesto por Cleveland
+et al. (1990), supera esta limitación:
 
 $$Y_t = T_t + S_t + R_t$$
 
-| Componente | Descripción |
-|------------|-------------|
-| $T_t$ | Tendencia — suavizado Loess |
-| $S_t$ | Estacionalidad — periódico, ajuste iterativo robusto |
-| $R_t$ | Residuo — componente irregular |
+| Componente | Descripción | Método |
+|------------|-------------|--------|
+| $T_t$ | Tendencia | Suavizado Loess (locally weighted regression) |
+| $S_t$ | Estacionalidad | Iteración períodica con pesos robustos |
+| $R_t$ | Residuo | Componente irregular |
 
-**Ventajas sobre decompose clásica:**
-1. Robusta frente a outliers (weighted least squares)
-2. Permite variación temporal del componente estacional
-3. Control sobre suavidad de tendencia y estacionalidad
+**Ventajas sobre `decompose` clásica:**
+1. **Robusta frente a outliers:** Usa weighted least squares que reduce la
+   influencia de observaciones atípicas.
+2. **Estacionalidad variable:** Permite que $S_t$ cambie suavemente con el tiempo.
+3. **Control granular:** Parámetros `seasonal` y `trend` permiten ajustar
+   la suavidad de cada componente.
 
-Se evalúa si la **varianza estacional aumenta con el nivel** de la serie
-(heterocedasticidad estacional); de confirmarse, se aplica `log1p`
-para estabilizar la varianza antes del modelado.""")
+### Heterocedasticidad estacional
+
+Se evalúa si la **varianza de la estacionalidad aumenta con el nivel** de la
+serie. Si la correlación nivel-varianza es fuerte ($r > 0.5$), la transformación
+`log1p` es necesaria para estabilizar la varianza antes del modelado.
+
+> **¿Qué es `log1p`?** Es $\log(1 + x)$, una variante de la transformación
+> logarítmica que maneja valores cero o cercanos a cero sin producir $-\infty$.
+> Es la transformación estándar para series monetarias con heterocedasticidad.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 7 — STL Decomposition (Code)
@@ -520,18 +564,38 @@ md(r"""---
 
 ## Fase III — Modelación de Dinámicas por Vertical de Negocio
 
-### 3.1 Licores y Cigarrillos
-Se deflacta el recaudo nominal con el IPC para separar:
-- **Crecimiento orgánico** (volumen real): ¿se consume más o menos?
-- **Efecto precio** (inflación): ¿el recaudo crece solo porque suben los precios?
+### ¿Por qué analizar por verticales?
 
-Referencia complementaria: la **ENCSPA** (DANE — Encuesta Nacional de Consumo de
-Sustancias Psicoactivas) reporta cambios en los patrones de consumo de alcohol y tabaco.
+La serie total de rentas cedidas agrega fuentes con dinámicas económicas
+muy distintas. Analizar cada vertical por separado permite:
+- **Identificar drivers específicos:** El consumo de licores responde a la
+  inflación (efecto precio), mientras que los juegos de azar responden al ingreso.
+- **Diagnosticar riesgos:** Si una fuente concentrada muestra decrecimiento real,
+  genera riesgo para la sostenibilidad del recaudo total.
+- **Informar la selección de regresores** para cada modelo posterior.
 
-### 3.2 Juegos de Azar y Apuestas
+### 3.1 Licores y Cigarrillos — Crecimiento orgánico vs efecto precio
+
+Se **deflacta** el recaudo nominal con el IPC para separar:
+- **Crecimiento orgánico** (volumen real): ¿se consume más o menos en términos reales?
+- **Efecto precio** (inflación): ¿el recaudo crece solo porque suben los precios
+  de los productos gravados?
+
+Esta distinción es fundamental porque un recaudo que solo crece por inflación
+no representa un fortalecimiento real de la base fiscal.
+
+### 3.2 Juegos de Azar y Apuestas — Elasticidad ingreso
+
 Se cruza el recaudo con el **Salario Mínimo (SMLV)** y se estima la
-**elasticidad ingreso** ($\beta$ de regresión log-log) para determinar si el
-consumo de azar es inelástico frente a la pérdida de poder adquisitivo.""")
+**elasticidad ingreso** ($\beta$ de regresión log-log):
+
+$$\log(\text{Recaudo}) = \alpha + \beta \cdot \log(\text{SMLV}) + \varepsilon$$
+
+- $|\beta| < 1$: **Inelástico** — el gasto en azar es relativamente estable
+  frente a cambios en el ingreso. Los hogares mantienen su gasto lúdico
+  incluso en períodos de contracción.
+- $|\beta| > 1$: **Elástico** — el gasto en azar responde fuertemente al ingreso,
+  haciéndolo proclíclico y volátil.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 10 — Licores y Cigarrillos (Code)
@@ -776,19 +840,34 @@ md(r"""---
 
 ## Fase IV — Tratamiento de Anomalías y Quiebres Estructurales
 
-### 4.1 Change Point Detection
-La migración del sistema ERP de **Dynamics a Oracle** durante 2025 puede generar
-picos artificiales (doble registro, cierres anticipados, acumulaciones) que sesguen
-la estacionalidad estimada.
+Los **quiebres estructurales** (change points) son momentos donde las propiedades
+estadísticas de la serie (media, varianza, estacionalidad) cambian abruptamente.
+Ignorar estos quiebres puede sesgar tanto la estimación del modelo como los
+pronósticos, ya que el modelo asumiría una estructura que ya no se mantiene.
 
-Se aplica detección de puntos de cambio mediante:
-1. **CUSUM** (Cumulative Sum Control Chart) sobre los residuos STL
-2. **Rolling Window** — cambios bruscos en la media y volatilidad
-3. **Test de Levene + Welch** — comparación formal pre-2025 vs 2025
+### 4.1 Change Point Detection
+
+La migración del sistema ERP de **Dynamics a Oracle** durante 2025 puede generar
+picos artificiales (doble registro, cierres anticipados, acumulaciones de periodos
+anteriores) que sesguen la estacionalidad estimada.
+
+Se aplican tres técnicas complementarias:
+1. **CUSUM** (Cumulative Sum Control Chart): Acumula las desviaciones de los
+   residuos STL respecto a su media. Si la curva cruza el umbral de Hawkins
+   ($\pm 4\sigma$), hay un cambio persistente en el proceso generador de datos.
+2. **Rolling Window**: Detecta cambios bruscos en la media móvil, identificando
+   los meses donde el cambio supera el percentil 90.
+3. **Test de Levene + Welch**: Comparación formal de varianza (Levene) y media
+   (Welch) entre los períodos pre-2025 y 2025. Welch es la versión del t-test
+   que **no asume varianzas iguales**, apropiada cuando sospechamos que la
+   migración alteró la volatilidad.
 
 ### 4.2 Clasificación de Valores Negativos
+
 Los registros negativos se clasifican por `TipoRegistro` para confirmar que son
-**ajustes contables presupuestales** y no errores de captura.""")
+**ajustes contables presupuestales** y no errores de captura. Si más del 80%
+corresponde a un solo tipo (e.g., 'Legalización'), se confirma su naturaleza
+sistemática.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 13 — Change Point Detection (Code)
@@ -1006,6 +1085,10 @@ md(r"""---
 
 ### Marco Teórico
 
+Recordemos del notebook 01 que la **estacionariedad** es un requisito previo
+para modelos ARIMA/SARIMAX. Aquí profundizamos evaluando **4 variantes** de
+la serie para determinar el parámetro óptimo de diferenciación.
+
 | Test | $H_0$ | $H_1$ | Interpretación |
 |------|--------|--------|----------------|
 | **ADF** | Raíz unitaria (no estacionaria) | Estacionaria | Rechazo $H_0$ → estacionaria |
@@ -1016,11 +1099,18 @@ md(r"""---
 - ADF no rechaza **Y** KPSS rechaza → **No estacionaria** → diferenciar
 - Resultados contradictorios → más datos o transformación
 
-Se evalúan 4 variantes:
-1. Serie original $Y_t$
-2. Primera diferencia $\Delta Y_t\;(d{=}1)$
-3. Diferencia estacional $\Delta_{12} Y_t\;(D{=}1)$
-4. Doble diferencia $\Delta\Delta_{12} Y_t\;(d{=}1, D{=}1)$""")
+### Las 4 variantes evaluadas
+
+| # | Variante | Fórmula | Interpretación |
+|---|----------|---------|----------------|
+| 1 | Serie original | $Y_t$ | ¿La serie en nivel es estacionaria? |
+| 2 | Primera diferencia | $\Delta Y_t = Y_t - Y_{t-1}$ | Remueve la tendencia |
+| 3 | Diferencia estacional | $\Delta_{12} Y_t = Y_t - Y_{t-12}$ | Remueve la estacionalidad |
+| 4 | Doble diferencia | $\Delta\Delta_{12} Y_t$ | Remueve tendencia + estacionalidad |
+
+> **¿Por qué 4 variantes?** La variante mínima que logre estacionariedad determina
+> los parámetros $d$ (diferenciación regular) y $D$ (diferenciación estacional)
+> del modelo SARIMAX. Sobre-diferenciar introduce autocorrelación artificial.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 16 — ADF + KPSS (Code)
@@ -1143,22 +1233,33 @@ md(r"""---
 
 ## Conclusiones del Análisis de Estacionalidad
 
-### Hallazgos Principales
+### Síntesis de Hallazgos
+
+Este notebook ha completado el análisis profundo de estacionalidad requerido
+para parametrizar los modelos predictivos. Los hallazgos se resumen en la
+siguiente tabla:
 
 | Análisis | Resultado | Implicación para Modelado |
 |----------|-----------|---------------------------|
 | **CCF (Lag)** | Rezago óptimo identificado | Confirma/rechaza hipótesis Dic→Ene, Jun→Jul |
-| **STL Avanzado** | F_s cuantificado | Perfil estacional fiscal con patrón robusto cada 12 meses |
-| **Heterocedasticidad** | Evaluación log1p | Decisión sobre transformación para SARIMA |
+| **STL Avanzado** | $F_s$ cuantificado | Perfil estacional fiscal robusto (periodo=12) |
+| **Heterocedasticidad** | Evaluación nivel-varianza | Decisión fundamentada sobre log1p |
 | **Licores/Cigarrillos** | Crecimiento orgánico vs inflacionario | Separación efecto volumen vs precio |
-| **Juegos de Azar** | Elasticidad ingreso cuantificada | Base para pronóstico con variables exógenas |
+| **Juegos de Azar** | Elasticidad ingreso cuantificada | Base para inclusión/exclusión de SMLV |
 | **Change Points** | Quiebres 2025 evaluados | Dummy para migración ERP si significativo |
 | **Valores Negativos** | Clasificados por TipoRegistro | Confirmación de ajustes contables legítimos |
-| **ADF + KPSS** | Orden (d, D) determinado | Parámetros de diferenciación para SARIMAX |
+| **ADF + KPSS** | Orden ($d$, $D$) determinado | Parámetros de diferenciación para SARIMAX |
 
 ### Parámetros para el Modelado (Notebooks 04–08)
 
+Los resultados de esta fase alimentan directamente la configuración de los
+modelos predictivos:
+
 ```
+Parámetros de diferenciación:
+  - d (regular) y D (estacional) determinados por ADF+KPSS
+  - Transformación log1p aplicada según diagnóstico de heterocedasticidad
+
 Variables exógenas candidatas:
   - IPC (deflactado) con lag identificado por CCF
   - SMLV (si juegos de azar es inelástico, incluir como control)
@@ -1167,7 +1268,7 @@ Variables exógenas candidatas:
 ```
 
 > **Siguiente paso**: `03_Correlacion_Macro.ipynb` — Análisis formal de correlación
-> multivariada y selección de regresores exógenos para SARIMAX.""")
+> multivariada con pruebas de significancia y selección de regresores exógenos.""")
 
 # ════════════════════════════════════════════════════════════
 # GUARDAR NOTEBOOK

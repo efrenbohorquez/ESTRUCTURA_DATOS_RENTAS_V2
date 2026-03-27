@@ -1,0 +1,7 @@
+﻿Variable,Pearson,Spearman,p_Pearson,VIF,Granger,Decision
+Recaudo_lag12,+0.862,+0.861,0.0000,—,—,✅ INCLUIR (SAR term)
+IPC,-0.168,-0.234,0.3066,inf,—,⚠️ DÉBIL — evaluar
+Salario_Min,-0.145,-0.216,0.3771,inf,—,⚠️ DÉBIL — evaluar
+UPC,-0.112,-0.168,0.4979,inf,p=0.4811,❌ EXCLUIR (solo gasto)
+Consumo_Hog,-0.031,+0.168,0.8514,inf,—,⚠️ DÉBIL — evaluar
+Desempleo,-0.183,-0.234,0.2636,inf,—,⚠️ DÉBIL — evaluar

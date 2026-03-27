@@ -36,20 +36,46 @@ md(r"""# 03 — Análisis de Correlación Macroeconómica Avanzado
 
 ---
 
+## Por qué un cuaderno dedicado a correlación macro
+
+Las Rentas Cedidas no se recaudan en un vacío económico. Cada peso que ingresa
+por impuesto al consumo de licores depende de **cuánto gana** el ciudadano
+(SMLV), **cuánto cuestan** los bienes gravados (IPC) y **qué tan dispuesto
+está** a consumirlos (Consumo de Hogares). Ignorar estas variables externas
+significa tratar el recaudo como un proceso puramente autorregresivo, cuando
+en realidad es un **proceso condicionado** al ciclo económico colombiano.
+
+Este cuaderno responde una pregunta clave:
+
+> *De todas las variables macroeconómicas disponibles, cuáles aportan
+> información predictiva real y cuáles solo introducen ruido o
+> multicolinealidad al modelo SARIMAX?*
+
 ## Objetivo
 
 Identificar los **determinantes externos** que explican la variabilidad del
 recaudo de Rentas Cedidas y validar su inclusión como regresores exógenos
 en modelos **SARIMAX**.
 
-| Fase | Análisis | Variables |
-|------|----------|-----------|
-| **I** | Deflación de Licores/Cigarrillos + CCF (Dic→Ene) | IPC, ENCSPA, Recaudo vertical |
-| **II** | Sensibilidad de Juegos de Azar al Ingreso | SMLV, Tasa Desempleo, Elasticidad |
-| **III** | UPC como Variable de Control | UPC vs Recaudo, Causalidad Granger |
-| **IV** | Quiebres Estructurales (Change Points) | CUSUM, Bai-Perron, Pandemic effect |
-| **V** | Matrices de Correlación + VIF | Pearson, Spearman, log-lags, VIF |
-| **VI** | Conclusiones — Regresores SARIMAX | Tabla de decisión final |
+## Arquitectura Analítica
+
+| Fase | Análisis | Variables | Pregunta que responde |
+|------|----------|-----------|----------------------|
+| **I** | Deflación Licores/Cigarrillos + CCF | IPC, ENCSPA, Recaudo vertical | El crecimiento es real o solo inflación? |
+| **II** | Sensibilidad Juegos de Azar | SMLV, Desempleo, Elasticidad | El azar responde al ingreso? |
+| **III** | UPC como Variable de Control | UPC vs Recaudo, Granger | La UPC causa el recaudo o solo el gasto? |
+| **IV** | Quiebres Estructurales | CUSUM, Varianza, Regímenes | Se justifica excluir 2020-2021? |
+| **V** | Matrices de Correlación + VIF | Pearson, Spearman, VIF | Qué variables son redundantes? |
+| **VI** | Conclusiones — Regresores SARIMAX | Tabla de decisión final | Cuáles entran al modelo? |
+
+### Marco Teórico
+
+- **Granger (1969)**: Causalidad predictiva — X causa Y si el pasado de X
+  mejora la predicción de Y, controlando por el pasado de Y.
+- **Engle & Granger (1987)**: Cointegración — series no estacionarias pueden
+  compartir una relación de largo plazo estable.
+- **Belsley, Kuh & Welsch (1980)**: Diagnóstico de colinealidad mediante VIF
+  para evitar regresores redundantes.
 
 > **Dependencia**: `serie_mensual.csv` (01_EDA), macro verificado (`00_config.py`).""")
 
@@ -126,22 +152,45 @@ md(r"""---
 
 ## Fase I — Modelación de Dinámicas de Consumo (Licores y Cigarrillos)
 
-### Deflación de la Serie
+### Por qué deflactar
 
-Se compara el recaudo **nominal** vs el recaudo **real** (ajustado por IPC)
-para determinar si el crecimiento observado es:
+Cuando una serie de recaudo crece 15% en un año donde la inflación fue 13%,
+el crecimiento **real** es apenas 2%. Sin deflactar, corremos el riesgo de
+atribuir al modelo una capacidad predictiva que en realidad es solo inercia
+de precios. La deflación separa el componente **orgánico** (volumen real)
+del componente **inflacionario** (efecto precio).
 
-| Componente | Significado | Indicador |
-|------------|-------------|-----------|
-| **Orgánico** | Mayor volumen real de consumo | $\Delta Y_{real} > 0$ |
-| **Inflacionario** | Solo efecto precio | $\Delta Y_{real} \leq 0$ y $\Delta Y_{nom} > 0$ |
+### Fórmula de Deflación
+
+$$Y_{real,t} = \frac{Y_{nominal,t}}{IPC_t} \times 100$$
+
+Donde $IPC_t$ es el índice de precios acumulado con base oct-2021 = 100.
+
+### Interpretación del Crecimiento Interanual
+
+| Componente | Significado | Indicador | Ejemplo |
+|------------|-------------|-----------|----------|
+| **Orgánico** | Mayor volumen real de consumo | $\Delta Y_{real} > 0$ | Más litros de licor vendidos |
+| **Inflacionario** | Solo efecto precio | $\Delta Y_{real} \leq 0$ y $\Delta Y_{nom} > 0$ | Mismos litros, precio mayor |
 
 ### Correlación Cruzada (CCF)
 
+La CCF mide la correlación entre dos series a diferentes rezagos:
+
+$$CCF(k) = \text{Corr}(X_t, Y_{t+k})$$
+
+- **k < 0**: X lidera (X en el pasado se correlaciona con Y en el presente)
+- **k = 0**: Contemporáneo
+- **k > 0**: Y lidera
+
 La hipótesis central es que el **pico de enero** es la materialización
-contable del consumo masivo de diciembre (lag 1-2 meses).
-Referencia complementaria: **ENCSPA** (DANE — Encuesta Nacional de Consumo
-de Sustancias Psicoactivas) sobre volumen de consumo de alcohol y tabaco.""")
+contable del consumo masivo de diciembre (lag 1-2 meses). Si el CCF muestra
+un pico significativo en lag = -1, significa que el consumo de diciembre
+*predice* el recaudo de enero.
+
+**Referencia**: ENCSPA (DANE — Encuesta Nacional de Consumo de Sustancias
+Psicoactivas) confirma que diciembre concentra el mayor volumen de consumo
+de alcohol del año.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 4 — Deflación Licores/Cigarrillos (Code)
@@ -384,23 +433,40 @@ md(r"""---
 
 ## Fase II — Análisis de Sensibilidad en Apuestas y Azar
 
+### Por qué analizar el azar por separado
+
+Los juegos de azar representan una vertical con comportamiento económico
+peculiar: en teoría, cuando el ingreso sube, la gente debería gastar más
+en juegos (*bien normal*). Pero la evidencia empírica internacional sugiere
+que en algunos países el azar es **contra-cíclico** — las personas apuestan
+más cuando están en dificultad económica (*paradoja del azar*).
+
+Para Colombia, esta distinción importa porque el recaudo de Coljuegos
+alimenta directamente las Rentas Cedidas para salud.
+
 ### Variables Exógenas
 
-| Variable | Fuente | Unidad |
-|----------|--------|--------|
-| Recaudo Juegos de Azar | Coljuegos / Rentas Cedidas | COP mensual |
-| Salario Mínimo (SMLV) | Decretos presidenciales | COP nominal |
-| Tasa de Desempleo | DANE — GEIH | % trimestral |
+| Variable | Fuente | Unidad | Rol en el análisis |
+|----------|--------|--------|-------------------|
+| Recaudo Juegos de Azar | Coljuegos / Rentas Cedidas | COP mensual | Variable dependiente |
+| Salario Mínimo (SMLV) | Decretos presidenciales | COP nominal | Proxy de ingreso |
+| Tasa de Desempleo | DANE — GEIH | % trimestral | Proxy de ciclo económico |
 
 ### Elasticidad Ingreso
 
-Se estima $\beta$ por regresión log-log:
+La elasticidad se estima mediante regresión log-log (forma funcional que
+garantiza que $\beta$ se interpreta directamente como elasticidad):
 
 $$\ln(\text{Recaudo}_{azar}) = \alpha + \beta \ln(\text{SMLV}) + \varepsilon$$
 
-- $|\beta| < 1$ : **Inelástico** — gasto no responde al ingreso
-- $|\beta| > 1$ : **Elástico** — gasto responde al ingreso
-- $\beta < 0$  : **Contra-cíclico** — paradoja del azar""")
+| Valor de $\beta$ | Clasificación | Significado | Implicación para ADRES |
+|------------------|---------------|-------------|------------------------|
+| $\beta > 1$ | **Elástico** | Gasto crece más que ingreso | Recaudo sensible al SMLV |
+| $0 < \beta < 1$ | **Inelástico** | Gasto crece menos que ingreso | Incluir SMLV con cautela |
+| $\beta < 0$ | **Contra-cíclico** | Paradoja del azar | No incluir SMLV como predictor |
+
+**Interpretación**: Si $\beta = 0.7$, un aumento de 10% en el SMLV produce
+un aumento de solo 7% en el recaudo de azar (inelástico).""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 7 — Juegos de Azar + Elasticidad (Code)
@@ -566,17 +632,34 @@ md(r"""---
 ### Controversia Técnica
 
 La **Unidad de Pago por Capitación (UPC)** determina cuánto recibe cada EPS por
-afiliado para servicios de salud. La hipótesis nula es:
+afiliado para servicios de salud. Existe una confusión frecuente: se asume que
+la UPC *determina* el recaudo porque ambas crecen en el tiempo. Pero la UPC
+opera del lado del **gasto** (cuánto se paga por servicios), no del lado del
+**ingreso** (cuánto se recauda por impuestos al consumo).
+
+### Hipótesis Formal
 
 > $H_0$: *La UPC no causa (en sentido de Granger) el recaudo de Rentas Cedidas;
 > su impacto se limita al gasto.*
 
-Se evalúa mediante:
-1. **Test de Causalidad de Granger** (p < 0.05 → rechazar $H_0$)
-2. **Correlación parcial** (controlando IPC y SMLV)
-3. **IEP** — Índice de Eficiencia Predictiva = $\frac{\Delta\% \text{Recaudo}}{\Delta\% \text{UPC}}$
-   - $IEP > 1$ : Superávit fiscal (recaudo crece más que UPC)
-   - $IEP < 1$ : Alerta Roja — brecha de sostenibilidad""")
+### Batería de Tests
+
+| Test | Qué evalúa | Criterio de rechazo |
+|------|-----------|--------------------|
+| **Causalidad de Granger** | El pasado de UPC mejora la predicción de Recaudo? | p < 0.05 en F-test |
+| **Correlación parcial** | UPC se correlaciona con Recaudo *controlando* IPC y SMLV? | $|r_{parcial}| > 0.3$ y p < 0.05 |
+| **IEP** (Índice de Eficiencia Predictiva) | Brecha entre crecimiento del recaudo y crecimiento de la UPC | $IEP < 1$ = Alerta Roja |
+
+### Método de Correlación Parcial
+
+Para aislar el efecto puro de la UPC, se regresan tanto Recaudo como UPC
+contra las variables de control (IPC, SMLV) y se correlacionan los
+**residuos**:
+
+$$r_{parcial}(R, UPC | IPC, SMLV) = \text{Corr}(e_R, e_{UPC})$$
+
+Si $r_{parcial} \approx 0$, significa que la correlación bruta entre UPC y
+Recaudo se explica enteramente por IPC y SMLV.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 9 — UPC Analysis (Code)
@@ -720,17 +803,35 @@ md(r"""---
 
 ## Fase IV — Tratamiento de Quiebres Estructurales
 
-### Justificación de la Exclusión 2020-2021
+### Qué es un quiebre estructural
 
-La pandemia COVID-19 generó quiebres estructurales en la serie:
-- **2020**: Confinamiento estricto → colapso de consumo de licores,
-  cigarrillos y juegos de azar
-- **2021 (Ene-Sep)**: Reactivación gradual, no representativa del
-  régimen estacionario
+Un quiebre estructural ocurre cuando los parámetros que gobiernan una serie
+cambian abruptamente. Imagínese que la serie de recaudo es un automóvil:
+si el motor cambia de gasolina a eléctrico, los patrones de consumo de
+combustible anteriores ya no predicen los futuros. Un modelo SARIMAX
+entrenado con datos del *motor antiguo* dará pronósticos erróneos.
 
-Se aplica **Change Point Detection** (CUSUM + test de varianza) para
-justificar matemáticamente la exclusión y confirmar que la serie
-Post-Oct-2021 opera bajo un régimen diferente.""")
+### Por qué excluimos 2020-2021
+
+La pandemia COVID-19 generó quiebres en la serie:
+
+| Período | Evento | Efecto en Rentas Cedidas |
+|---------|--------|-------------------------|
+| **Mar-Dic 2020** | Confinamientos estrictos | Colapso de consumo de licores, cigarrillos y azar |
+| **Ene-Sep 2021** | Reactivación gradual | Datos planos, no representativos del régimen estable |
+| **Oct 2021 →** | Régimen post-COVID | Estacionalidad reproducible recuperada |
+
+### Métodos de Detección
+
+1. **CUSUM** (Sumas Acumuladas): Acumula las desviaciones de los residuos
+   respecto a su media. Si la suma excede un umbral $\pm 4\sigma$, indica
+   cambio de régimen.
+2. **Test de Levene**: Compara la varianza de dos segmentos de la serie.
+   p < 0.05 indica cambio de variabilidad.
+3. **Test de Welch**: Compara la media de dos segmentos con varianzas
+   potencialmente diferentes.
+4. **Rolling window**: Detecta cambios abruscos mes a mes cuando
+   $|\Delta \bar{Y}| > P_{90}$.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 11 — Change Points (Code)
@@ -855,26 +956,48 @@ md(r"""---
 
 ## Fase V — Matrices de Correlación y Diagnóstico de Multicolinealidad
 
+### Por qué dos tipos de correlación
+
+- **Pearson** mide relación **lineal**: detecta si cuando una variable sube,
+  la otra sube proporcionalmente. Ideal para variables que se mueven juntas
+  en línea recta.
+- **Spearman** mide relación **monotónica**: detecta si cuando una variable
+  sube, la otra *tiende* a subir (aunque no proporcionalmente). Ideal para
+  variables con relaciones no lineales o valores extremos.
+
+Si Pearson y Spearman dan resultados muy diferentes, indica que la relación
+es no lineal y debería usar transformación logarítmica.
+
 ### Transformaciones de Variables
 
 Antes de computar las matrices, se generan transformaciones log-lag:
 
-| Variable transformada | Definición |
-|----------------------|------------|
-| `log_Recaudo` | $\ln(\text{Recaudo})$ |
-| `log_IPC` | $\ln(\text{IPC})$ |
-| `log_SMLV` | $\ln(\text{SMLV})$ |
-| `Recaudo_lag1` | $Y_{t-1}$ |
-| `Recaudo_lag12` | $Y_{t-12}$ |
-| `YoY_Recaudo` | $\Delta\%_{12} Y_t$ |
+| Variable transformada | Definición | Propósito |
+|----------------------|------------|----------|
+| `log_Recaudo` | $\ln(\text{Recaudo})$ | Linealizar relaciones multiplicativas |
+| `log_IPC` | $\ln(\text{IPC})$ | Capturar elasticidades |
+| `log_SMLV` | $\ln(\text{SMLV})$ | Capturar elasticidades |
+| `Recaudo_lag1` | $Y_{t-1}$ | Componente AR(1) |
+| `Recaudo_lag12` | $Y_{t-12}$ | Componente SAR(1) — estacionalidad anual |
+| `YoY_Recaudo` | $\Delta\%_{12} Y_t$ | Crecimiento interanual |
 
 ### VIF (Factor de Inflación de la Varianza)
 
+El VIF detecta **multicolinealidad**: cuando dos o más regresores comparten
+tanta información que incluir ambos es redundante. Para la variable $j$,
+se regresa contra todas las demás y se mide cuánto se explica:
+
 $$VIF_j = \frac{1}{1 - R_j^2}$$
 
-- $VIF < 5$ : Aceptable
-- $VIF \in [5, 10]$ : Precaución
-- $VIF > 10$ : Multicolinealidad severa → eliminar variable""")
+| VIF | Diagnóstico | Acción |
+|-----|-------------|--------|
+| $< 5$ | Aceptable | Mantener |
+| $5 - 10$ | Precaución | Considerar eliminar |
+| $> 10$ | Multicolinealidad severa | Eliminar obligatoriamente |
+
+**Ejemplo**: Si IPC y SMLV tienen VIF > 10, significa que una se puede
+predecir casi perfectamente con la otra — incluir ambas en SARIMAX no
+aporta información adicional, solo inestabilidad numérica.""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 13 — Matrices Pearson + Spearman (Code)
@@ -1101,24 +1224,36 @@ md(r"""---
 
 ## Fase VI — Conclusiones: Selección de Regresores SARIMAX
 
+### Criterios de Selección
+
+Un buen regresor exógeno para SARIMAX debe cumplir **tres condiciones
+simultáneas**:
+
+1. **Correlación significativa** con el recaudo (Pearson o Spearman,
+   p < 0.05)
+2. **Sin multicolinealidad** severa con otros regresores (VIF < 10)
+3. **Disponibilidad en horizonte de pronóstico**: debo poder proyectar
+   el valor de la variable para 2026 (IPC proyectado por BanRep,
+   SMLV fijado por decreto, UPC fijada por MinSalud)
+
 ### Tabla de Decisión
 
-| Variable | Correlación | VIF | Granger | Decisión SARIMAX |
-|----------|-------------|-----|---------|------------------|
-| `Recaudo_lag12` | Alta (>0.8) | — | — | **INCLUIR** (estacionalidad pura) |
-| `IPC` | Ver Pearson/Spearman | Ver VIF | — | **INCLUIR** si VIF < 10 (deflactor de indización) |
-| `Salario_Min (SMLV)` | Ver correlación | Ver VIF | — | **INCLUIR** (impulsa consumo de gravados) |
-| `UPC` | Ver parcial | — | Ver Granger | **EXCLUIR** si no causa Granger (variable de gasto) |
-| `Consumo_Hogares` | Ver CCF | Bajo | — | **INCLUIR** como proxy de demanda si lag significativo |
-| `Desempleo` | Ver elasticidad | Bajo | — | **CONDICIONAL** — incluir si alta elasticidad en azar |
+| Variable | Correlación | VIF | Granger | Decisión SARIMAX | Justificación |
+|----------|-------------|-----|---------|------------------|---------------|
+| `Recaudo_lag12` | Alta (>0.8) | — | — | **INCLUIR** (SAR) | Estacionalidad anual capturada por $(P,D,Q)_{12}$ |
+| `IPC` | Ver resultados | Ver VIF | — | **INCLUIR** si VIF < 10 | Los impuestos son *ad valorem*: se indician al IPC |
+| `Salario_Min (SMLV)` | Ver correlación | Ver VIF | — | **INCLUIR** | Impulsa poder adquisitivo para bienes gravados |
+| `UPC` | Ver parcial | — | Ver Granger | **EXCLUIR** | Solo opera del lado del gasto, no del ingreso |
+| `Consumo_Hogares` | Ver CCF | Bajo | — | **INCLUIR** | Proxy de demanda agregada si lag significativo |
+| `Desempleo` | Ver elasticidad | Bajo | — | **CONDICIONAL** | Solo si elasticidad relevante en vertical de azar |
 
-### Parámetros para SARIMAX (Notebook 05)
+### Variables Dummy Recomendadas
 
-```
-exog candidatas finales: [IPC, Salario_Minimo, Consumo_Hogares]
-                          + dummies: is_peak(Ene/Jul), is_festivity(Jun/Dic)
-                          + ERP_migration (2025) si change point significativo
-```""")
+| Dummy | Valor = 1 | Razón |
+|-------|-----------|-------|
+| `is_peak` | Ene, Jul | Picos estacionales por recaudo mes vencido |
+| `is_festivity` | Jun, Dic | Consumo festivo intensificado |
+| `ERP_2025` | 2025 Q2-Q4 | Migración de sistema ERP Oracle (si change point) |""")
 
 # ════════════════════════════════════════════════════════════
 # CELDA 17 — Tabla Resumen Final (Code)
@@ -1227,16 +1362,25 @@ md(r"""---
 
 ## Conclusiones del Análisis de Correlación Macroeconómica
 
+### Síntesis Narrativa
+
+Este cuaderno demostró que el recaudo de Rentas Cedidas no es un proceso
+aislado: está **condicionado** por variables macroeconómicas identificables
+y medibles. La deflación reveló qué parte del crecimiento es real y qué
+parte es inercia inflacionaria. La elasticidad cuantificó la sensibilidad
+del azar al ingreso. Y el diagnóstico de multicolinealidad evitó incluir
+variables redundantes que contaminarían el modelo SARIMAX.
+
 ### Hallazgos por Fase
 
-| Fase | Hallazgo Principal | Implicación para Modelado |
-|------|-------------------|---------------------------|
-| **I** | Deflación Licores/Cigarrillos | Crecimiento orgánico vs inflacionario cuantificado; CCF valida lag contable |
-| **II** | Elasticidad Juegos de Azar | beta estimado respecto a SMLV y desempleo |
-| **III** | UPC como variable de control | Test Granger determina si incluir/excluir |
-| **IV** | Change Points | Exclusión de 2020-2021 justificada matemáticamente |
-| **V** | Matrices + VIF | Variables sin multicolinealidad seleccionadas |
-| **VI** | Tabla de decisión | Regresores finales para SARIMAX definidos |
+| Fase | Hallazgo Principal | Implicación para Modelado | Referencia |
+|------|-------------------|---------------------------|------------|
+| **I** | Deflación Licores/Cigarrillos | Crecimiento orgánico vs inflacionario cuantificado | ENCSPA (DANE) |
+| **II** | Elasticidad Juegos de Azar | beta estimado respecto a SMLV y desempleo | Coljuegos |
+| **III** | UPC como variable de control | Test Granger determina si incluir/excluir | Granger (1969) |
+| **IV** | Change Points | Exclusión de 2020-2021 justificada matemáticamente | CUSUM (Page, 1954) |
+| **V** | Matrices + VIF | Variables sin multicolinealidad seleccionadas | Belsley et al. (1980) |
+| **VI** | Tabla de decisión | Regresores finales para SARIMAX definidos | — |
 
 ### Artefactos Generados
 

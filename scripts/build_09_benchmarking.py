@@ -197,21 +197,36 @@ print(f'  Recaudo total: ${df[COL_VALOR].sum()/1e12:,.3f} billones COP')
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase II — Concentracion Fiscal: Ley de Pareto y Curva de Lorenz
+## Fase II -- Concentracion Fiscal: Ley de Pareto y Curva de Lorenz
 
 > *"5 departamentos generan aproximadamente el 68% de las rentas cedidas"*
-> — Orozco-Gallo (2015)
+> -- Orozco-Gallo (2015)
 
-### Definiciones
+### Por que medir la concentracion
 
-- **Curva de Lorenz**: Proporcion acumulada de recaudo vs proporcion acumulada
-  de entidades (ordenadas de menor a mayor).
-- **Indice de Gini**: $G = 1 - 2 \int_0^1 L(p)\,dp$, donde $L(p)$ es la
-  curva de Lorenz. Valores $> 0.6$ indican alta concentracion.
-- **Ley de Pareto (80/20)**: Se valida si el 20% de entidades concentra
-  $\geq$ 80% del recaudo.
-- **Bottom-50%**: Proporcion del recaudo generada por la mitad inferior de
-  entidades. Valores $< 5\%$ evidencian vulnerabilidad extrema.
+Si el recaudo esta concentrado en pocas entidades, el sistema fiscal
+es **fragil**: la caida de una sola entidad grande impacta todo el
+presupuesto. Para la ADRES, conocer la concentracion es critico
+porque determina:
+
+1. **Riesgo sistemico**: Que pasa si Bogota o Antioquia caen un trimestre?
+2. **Equidad territorial**: Las entidades pequenas tienen recursos suficientes?
+3. **Priorizacion del SAT**: Donde enfocar la fiscalizacion?
+
+### Definiciones Formales
+
+| Indicador | Formula | Interpretacion |
+|-----------|---------|---------------|
+| **Curva de Lorenz** | $L(p)$ vs $p$ | Diagonal = igualdad perfecta |
+| **Indice de Gini** | $G = 1 - 2 \int_0^1 L(p)\,dp$ | 0 = equidad, 1 = concentracion total |
+| **Ley de Pareto** | 20% entidades $\geq$ 80% recaudo? | 80/20 clasico |
+| **Bottom-50%** | Recaudo de la mitad inferior | $<5\%$ = vulnerabilidad extrema |
+
+### Lectura de la Curva de Lorenz
+
+- **Curva pegada al eje X**: Alta concentracion (muchas entidades aportan casi nada)
+- **Curva cercana a la diagonal**: Distribucion equitativa
+- **Area entre diagonal y curva**: Proporcional al indice de Gini
 """)
 
 
@@ -237,8 +252,9 @@ lorenz_cum = np.cumsum(recaudo_sorted) / recaudo_sorted.sum()
 lorenz_cum = np.insert(lorenz_cum, 0, 0)
 x_lorenz = np.linspace(0, 1, len(lorenz_cum))
 
-# --- 2.3 Indice de Gini (metodo trapezoidal, NumPy 2.x) ---
-area_bajo_lorenz = np.trapezoid(lorenz_cum, x_lorenz)
+# --- 2.3 Indice de Gini (metodo trapezoidal, compatible NumPy 1.x/2.x) ---
+_trapz_fn = np.trapezoid if hasattr(np, 'trapezoid') else np.trapz
+area_bajo_lorenz = _trapz_fn(lorenz_cum, x_lorenz)
 gini = 1 - 2 * area_bajo_lorenz
 print(f'\n  Indice de Gini: {gini:.4f}')
 print(f'  Interpretacion: {"ALTA concentracion" if gini > 0.6 else "Moderada" if gini > 0.4 else "Baja"}')
@@ -623,24 +639,34 @@ plt.show()
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase IV — Asimetria Estructural: Bogota (FFDS) vs Choco
+## Fase IV -- Asimetria Estructural: Bogota (FFDS) vs Choco
+
+### Por que este caso de estudio
+
+Bogota y Choco representan los **extremos** del espectro fiscal colombiano.
+Documentar esta brecha no es un ejercicio academico abstracto: tiene
+consecuencias directas en la cobertura de salud de 1.5 millones de
+habitantes del Choco.
 
 ### Brecha de Gasto Per Capita en Salud
 
-La literatura documenta una brecha extrema de gasto per capita:
+| Entidad | Gasto per capita anual | Fuente | Poblacion |
+|---------|----------------------|--------|-----------|
+| **Bogota (FFDS)** | ~$12,500 USD | MinSalud / Bonet & Meisel (2007) | ~8.4M |
+| **Quibdo/Choco** | ~$667 USD | MinSalud / DNP (2017) | ~0.5M |
+| **Ratio** | **18.7:1** | Brecha documentada | -- |
 
-| Entidad | Gasto per capita anual | Fuente |
-|---------|----------------------|--------|
-| **Bogota** | ~$12,500 USD | MinSalud / Bonet & Meisel (2007) |
-| **Quibdo/Choco** | ~$667 USD | MinSalud / DNP (2017) |
-| **Ratio** | **18.7:1** | Brecha documentada |
+### Que buscamos en el perfil estacional
 
-### Perfil Estacional Fiscal
+| Dimension | Bogota (esperado) | Choco (esperado) |
+|-----------|-------------------|------------------|
+| Regularidad | Alta (patron predecible) | Baja (erratica) |
+| Amplitud picos | Moderada | Extrema (pocos meses concentran todo) |
+| Meses con reporte | 12/12 cada ano | Posibles meses sin giro |
+| Estacionalidad | Clara (ene/jul) | Difusa |
 
-Se compara la estacionalidad normalizada ($s = 12$) entre una entidad
-consolidada (FFDS Bogota) y una dependiente (SED Choco) para evaluar
-si el perfil estacional es mas erratico en Choco, lo que justificaria
-una **Alerta Roja permanente** en el SAT.
+Si el Choco presenta estacionalidad erratica, justifica una
+**Alerta Roja permanente** en el SAT.
 
 > *Nota: Se utiliza la SED Choco (1,740 registros) porque el Municipio de*
 > *Quibdo tiene solo 61 registros, insuficientes para analisis estacional.*
@@ -985,18 +1011,33 @@ print(f'  Crecimiento nominal: {crec_nom:+.1f}% vs Real: {crec_real:+.1f}%')
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase VI — Autocorrelacion Lag-12 y Deteccion de Anomalias
+## Fase VI -- Autocorrelacion Lag-12 y Deteccion de Anomalias
+
+### Que es la autocorrelacion y por que lag-12
+
+La autocorrelacion mide cuanto se parece una serie a si misma desplazada
+en el tiempo. Con datos mensuales, el **lag-12** compara cada mes con el
+mismo mes del ano anterior:
+
+$$r_{12} = \text{Corr}(y_t, y_{t-12})$$
 
 ### Memoria Anual del Recaudo
 
-El analisis de autocorrelacion de la serie agregada muestra $r_{12} \approx 0.87$,
-confirmando que el recaudo es un fenomeno con **memoria anual** fuerte.
+El analisis muestra $r_{12} \approx 0.87$ en la serie agregada, lo que
+significa que **el 87% de la variabilidad de un mes se explica por el mismo
+mes del ano anterior**. Este es el fundamento de los modelos SARIMA.
+
+| Valor de $r_{12}$ | Interpretacion | Implicacion para el SAT |
+|-------------------|---------------|------------------------|
+| $> 0.7$ | Memoria fuerte | Pronostico confiable, monitoreo trimestral |
+| $0.5 - 0.7$ | Memoria moderada | Pronostico con cautela, monitoreo mensual |
+| $< 0.5$ | Memoria debil | Alerta: comportamiento erratico |
+| $< 0.3$ | Sin patron | Candidata a fiscalizacion proactiva |
 
 ### Deteccion de Anomalias para el STAR
 
-Las entidades que **rompen** el patron de autocorrelacion lag-12
-($r_{12} < 0.5$) son candidatas principales para la **fiscalizacion proactiva**.
-Un lag-12 debil indica:
+Las entidades con $r_{12} < 0.5$ son candidatas principales para
+fiscalizacion proactiva. Un lag-12 debil indica:
 
 - Recaudo erratico sin estacionalidad predecible
 - Posible fraude, evasion o cambio estructural
@@ -1389,17 +1430,36 @@ plt.show()
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Fase VIII — Mapa de Calor Territorial y Box-Plots Multitemporales
+## Fase VIII -- Mapa de Calor Territorial y Box-Plots Multitemporales
 
 ### 8.1 Heat Map de Eficiencia Territorial
 
 Matriz entidad x mes (Top 20) que visualiza la densidad de recaudo
-normalizada por fila, revelando patrones estacionales diferenciados.
+normalizada por fila. Cada celda muestra que tan importante es ese mes
+para esa entidad relativo a su propio maximo.
 
-### 8.2 Box-Plots por Tipologia y Anio
+**Como leerlo:**
 
-Distribucion del recaudo anual por tipologia, validando que la varianza
-de las entidades Criticas es sistematicamente mayor.
+| Color | Significado | Ejemplo |
+|-------|-----------|--------|
+| Claro (cercano a 0) | Mes de bajo recaudo relativo | Agosto para la mayoria |
+| Oscuro (cercano a 1) | Mes de maximo recaudo | Enero, Julio (mes vencido) |
+| Uniforme (todos medios) | Sin estacionalidad clara | Entidad erratica |
+
+### 8.2 Box-Plots por Tipologia y Ano
+
+Distribucion del recaudo anual por tipologia, validando que:
+
+- La **mediana** de los Consolidados es ordenes de magnitud mayor
+- La **varianza** (bigotes del boxplot) de los Criticos es sistematicamente mayor
+- Los **outliers** (puntos individuales) pueden indicar eventos atipicos
+  (migracion ERP, fraude, o recaudo extraordinario)
+
+### Interpretacion conjunta
+
+El heatmap revela **cuando** recauda cada entidad; el boxplot revela
+**cuanto** y **cuan estable**. Juntos permiten al SAT identificar
+entidades que necesitan intervencion diferenciada por estacionalidad.
 """)
 
 
@@ -1595,7 +1655,7 @@ print(f'  {"="*50}')
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 
-## Conclusiones
+## Conclusiones del Benchmarking Territorial
 
 ### Hallazgos Principales
 
@@ -1611,15 +1671,15 @@ md(r"""---
 
 3. **Brecha Bogota-Choco**: El ratio de desigualdad supera 10:1 en la
    mayoria de meses, consistente con la brecha per capita documentada
-   ($12,500 vs $667). El perfil estacional fiscal del Choco es mas
-   erratico, justificando Alerta Roja permanente.
+   ($12,500 vs $667). El perfil estacional del Choco es mas erratico,
+   justificando Alerta Roja permanente.
 
 4. **Efecto inflacionario medible**: La deflactacion IPC demuestra que
    parte del crecimiento nominal es ilusorio. La elasticidad beta
    permite proyectar el impacto del 23% de aumento del SMLV en 2026.
 
 5. **Lag-12 como detector de anomalias**: Las entidades que rompen el
-   patron de memoria anual (R_Lag12 < 0.3) son candidatas prioritarias
+   patron de memoria anual ($r_{12} < 0.3$) son candidatas prioritarias
    para fiscalizacion proactiva en el STAR.
 
 6. **SAT adaptativo operativo**: El semaforo basado en ERS (cuartiles)
@@ -1628,13 +1688,25 @@ md(r"""---
 
 ### Implicaciones para Politica Publica
 
-- **Ley 1753 de 2015**: El SAT-STAR operacionaliza el mandato de
-  fortalecimiento fiscal territorial.
-- **Decreto 2265 de 2017**: La clasificacion ERS permite priorizar la
-  distribucion de Rentas Cedidas hacia entidades criticas.
-- **Multicolinealidad SMLV-UPC** (r = 0.903): El SAT prioriza UPC como
-  variable de costo e IPC como deflactor de ingreso para evitar
-  inestabilidad en coeficientes.
+| Norma | Operacionalizacion en el STAR |
+|-------|------------------------------|
+| Ley 1753/2015 (Art. 65) | SAT como herramienta de fortalecimiento fiscal |
+| Decreto 2265/2017 | Clasificacion ERS prioriza distribucion a entidades criticas |
+| Ley 715/2001 (Art. 44) | SGP benchmark (CV 6-8%) como referencia de estabilidad |
+
+### Multicolinealidad SMLV-UPC
+
+La correlacion $r = 0.903$ entre SMLV y UPC obliga a usar solo una
+variable en modelos de regresion. El SAT prioriza:
+- **UPC** como variable de costo (riesgo de desfinanciamiento)
+- **IPC** como deflactor de ingreso (crecimiento real vs nominal)
+
+### Referencias
+
+- Orozco-Gallo, A. (2015). *Concentracion fiscal en Colombia*. Banco de la Republica.
+- Santamaria, M. et al. (2008). *Estabilidad fiscal territorial*. DNP.
+- Bonet, J. & Meisel, A. (2007). *Polarizacion del ingreso per capita en Colombia*.
+- Ley 1753 de 2015, Decreto 2265 de 2017, Ley 715 de 2001.
 
 ---
 

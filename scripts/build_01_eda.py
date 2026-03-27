@@ -32,6 +32,16 @@ def code(source):
 md(r"""# 01 · Análisis Exploratorio de Datos (EDA)
 ## Recaudo de Rentas Cedidas del SGSS — Colombia, Oct 2021 – Dic 2025
 
+### Contexto institucional
+
+Las **rentas cedidas** son tributos específicos (impuesto al consumo de licores,
+cervezas, cigarrillos, juegos de azar, entre otros) cuyo recaudo es transferido
+por la DIAN y entes territoriales a la **ADRES** (Administradora de los Recursos
+del Sistema General de Seguridad Social en Salud) para financiar el aseguramiento
+en salud de la población colombiana. Comprender la dinámica de estos ingresos
+fiscales es crítico para la planeación presupuestal del sector salud y la
+sostenibilidad financiera del SGSS.
+
 > **Objetivo.** Realizar una exploración estadística rigurosa de la serie de recaudo
 > de rentas cedidas para salud, con el fin de: *(i)* auditar la calidad de los datos,
 > *(ii)* caracterizar la estructura categórica y temporal del ingreso fiscal,
@@ -39,18 +49,33 @@ md(r"""# 01 · Análisis Exploratorio de Datos (EDA)
 > *(iv)* establecer las hipótesis estadísticas que guiarán la selección de modelos
 > predictivos en las etapas subsiguientes.
 
-**Metodología.** El análisis sigue un protocolo de EDA inspirado en Tukey (1977) y
-Cleveland (1993), articulado en cuatro fases:
+### Marco metodológico
 
-| Fase | Contenido |
-|------|-----------|
-| **I** | Auditoría de calidad, tipificación y estructura categórica |
-| **II** | Agregación mensual, tendencia visual, estacionalidad |
-| **III** | Descomposición clásica, estacionariedad (ADF/KPSS), ACF/PACF |
-| **IV** | Deflación real con IPC, crecimiento interanual, correlación macro |
+El **Análisis Exploratorio de Datos** (EDA, por sus siglas en inglés) es una
+filosofía de análisis propuesta por John W. Tukey (1977) en su obra seminal
+*Exploratory Data Analysis*. A diferencia del enfoque confirmatorio clásico,
+el EDA prioriza la **visualización** y la **detección de patrones** antes de
+formular hipótesis formales. William S. Cleveland (1993) extendió esta filosofía
+con el concepto de *visualizing data* — la idea de que los gráficos bien diseñados
+revelan estructura que los estadísticos resumen no capturan.
+
+Nuestro protocolo se articula en cuatro fases progresivas:
+
+| Fase | Contenido | Preguntas clave |
+|------|-----------|-----------------|
+| **I** | Auditoría de calidad, tipificación y estructura categórica | ¿Son los datos confiables? ¿Qué conceptos fiscales los componen? |
+| **II** | Agregación mensual, tendencia visual, estacionalidad | ¿Cuál es la forma de la serie? ¿Hay patrones recurrentes? |
+| **III** | Descomposición clásica, estacionariedad (ADF/KPSS), ACF/PACF | ¿Es estacionaria la serie? ¿Qué estructura de dependencia temporal tiene? |
+| **IV** | Deflación real con IPC, crecimiento interanual, correlación macro | ¿Cuánto del crecimiento es real vs. inflación? ¿Qué variables macro se correlacionan? |
+
+> **¿Por qué es importante el EDA antes de modelar?** Un modelo predictivo es tan
+> bueno como los datos y supuestos sobre los que se construye. El EDA permite:
+> descubrir valores atípicos que distorsionarían las estimaciones, verificar si la
+> serie cumple los supuestos de estacionariedad que requieren modelos como ARIMA,
+> y formular hipótesis informadas sobre qué regresores exógenos incluir.
 
 **Dataset.** `BaseRentasCedidasVF.xlsx` — 149 648 registros
-transaccionales × 13 variables, periodo Oct 2021 – Dic 2025 (51 meses).
+transaccionales x 13 variables, periodo Oct 2021 -- Dic 2025 (51 meses).
 """)
 
 # ════════════════════════════════════════════════════════════════
@@ -79,10 +104,25 @@ print(f"✂️  División Entrenamiento/Prueba: Entrenamiento hasta {TRAIN_END} 
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 ## Fase I — Auditoría de Calidad y Estructura de Datos
+
+Antes de cualquier análisis estadístico, la **auditoría de calidad** es un paso
+indispensable. Datos con errores de tipo, valores faltantes ocultos o codificaciones
+inconsistentes pueden generar resultados espurios en etapas posteriores. Esta fase
+sigue las recomendaciones del framework *Data Quality Assessment* de Pipino, Lee y
+Wang (2002), evaluando cuatro dimensiones: **completitud**, **exactitud**,
+**consistencia** y **oportunidad**.
+
 ### 1.1  Carga y perfilamiento inicial
 
-Se importa el archivo fuente y se realiza un perfilamiento automático que incluye:
-dimensiones, tipos de dato, nulos, rango temporal y conteo de valores únicos por columna.
+Se importa el archivo fuente y se realiza un **perfilamiento automático** (automated
+profiling) que incluye: dimensiones, tipos de dato, conteo de nulos, rango temporal
+y valores únicos por columna. Este perfilamiento equivale a lo que herramientas como
+*pandas-profiling* realizan, pero implementado explícitamente para mayor transparencia.
+
+> **Lectura del perfilamiento:** La columna *Nulos* indica si hay datos faltantes
+> (marcados con *NaN*). La columna *Únicos* revela la cardinalidad de cada variable:
+> valores bajos sugieren variables categóricas, valores altos sugieren variables
+> continuas o identificadores.
 """)
 
 code(r"""# ── 1.1 Carga del dataset ─────────────────────────────────────────
@@ -110,11 +150,23 @@ print(f"📊 Meses únicos:  {df[COL_FECHA].dt.to_period('M').nunique()}")
 # ────────────────────────────────────────────────────────────────
 md(r"""### 1.2  Conversión de tipos y detección de anomalías
 
-`ValorRecaudo` se almacena como *object* (texto) en el archivo fuente;
-se convierte a numérico forzando `errors='coerce'` para detectar entradas
-no parseables. Se documentan los registros con valor negativo, que corresponden
-mayoritariamente a **ajustes contables presupuestales** — un mecanismo
-legítimo de conciliación fiscal.
+`ValorRecaudo` se almacena como *object* (texto) en el archivo fuente, lo cual es
+común en archivos Excel donde columnas monetarias incluyen separadores de miles o
+símbolos ($). Se convierte a numérico con `errors='coerce'`, que asigna *NaN* a
+entradas no parseables en lugar de producir un error.
+
+**Valores negativos: ajustes contables presupuestales.** En el contexto de las
+rentas cedidas colombianas, los registros negativos no son errores sino
+**reversiones presupuestales** y **conciliaciones inter-vigencia**. Esto ocurre
+cuando se ajustan pagos anteriores, se corrigen errores de imputación entre
+vigencias o se realizan devoluciones por pagos en exceso. Estos valores se
+**mantienen** en el análisis porque representan la realidad fiscal neta del flujo
+de recursos — eliminarlos sesgaría la serie hacia arriba.
+
+> **Decisión de diseño:** Mantener los negativos implica que la serie mensual
+> refleja el *recaudo neto efectivo*, no el recaudo bruto. Esta distinción es
+> relevante para la interpretación de los pronósticos: los modelos predicen el
+> flujo neto, incluyendo la posibilidad de ajustes a la baja.
 """)
 
 code(r"""# ── 1.2 Conversiones y limpieza ───────────────────────────────────
@@ -154,7 +206,21 @@ md(r"""### 1.3  Estructura categórica del recaudo
 
 Se explora la composición del dataset por sus dimensiones cualitativas:
 **Rubro**, **Grupo/SubGrupo Fuente**, **Tipo de Registro** y **SubGrupo Aportante**.
-Esta taxonomía es fundamental para segmentar el análisis predictivo posterior.
+
+**¿Por qué importa la estructura categórica?** Las rentas cedidas no son un flujo
+homogéneo: están compuestas por **subgrupos fuente** con dinámicas económicas
+muy distintas. Por ejemplo:
+- **Licores y cerveza** dependen del consumo de alcohol (elástico al ingreso disponible).
+- **Cigarrillos** tienen demanda inelástica pero están sujetos a regulación creciente.
+- **Juegos de azar** son altamente volátiles y dependen del ciclo económico.
+
+Comprender esta composición permite anticipar qué subgrupos podrían explicar
+variaciones inesperadas en la serie agregada y justifica la inclusión de
+regresores macro específicos en modelos posteriores.
+
+> **Nota visual:** Los colores en los gráficos de barras distinguen valores
+> positivos (azul) de negativos (rojo), facilitando la identificación de
+> subgrupos donde los ajustes contables son más frecuentes.
 """)
 
 code(r"""# ── 1.3 Exploración categórica ────────────────────────────────────
@@ -206,11 +272,30 @@ for nombre, valor in part.items():
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 ## Fase II — Agregación Mensual y Visualización Temporal
+
+Los datos transaccionales (149K+ registros) deben **agregarse** a una frecuencia
+regular para poder aplicar modelos de series de tiempo. La elección de la frecuencia
+de agregación es una decisión de diseño importante:
+- **Diaria:** Demasiado ruidosa para recaudo fiscal (muchos días sin transferencias).
+- **Mensual:** Frecuencia natural del ciclo presupuestal colombiano (los giros de ADRES
+  se consolidan mensualmente). Genera 51 observaciones — suficientes para SARIMA y Prophet.
+- **Trimestral:** Muy pocas observaciones (17) para modelado estadístico.
+
+Usamos frecuencia **mensual** (`MS` = *Month Start*), que además coincide con el ciclo
+de reporte de las rentas cedidas ante el Ministerio de Salud.
+
 ### 2.1  Remuestreo mensual y estadísticas descriptivas
 
-Se agrega el recaudo transaccional a frecuencia mensual (`MS` = *Month Start*)
-mediante sumatoria, generando la **serie objetivo** para todos los modelos
-predictivos posteriores. Se calculan estadísticos de localización y dispersión.
+Las **estadísticas descriptivas** proporcionan un resumen cuantitativo de la distribución
+del recaudo mensual. Métricas clave a observar:
+
+| Métrica | Interpretación |
+|---------|---------------|
+| **Media** | Nivel central del recaudo mensual típico |
+| **Mediana** | Valor central robusto a outliers (si media >> mediana, hay asimetría positiva) |
+| **Desv. estándar** | Dispersión absoluta del recaudo |
+| **CV (%)** | Dispersión relativa: CV > 30% indica alta variabilidad |
+| **IQR** | Rango intercuartílico: dispersión del 50% central de los datos |
 """)
 
 code(r"""# ── 2.1 Agregación mensual ────────────────────────────────────────
@@ -250,11 +335,27 @@ print(df_mensual[['Recaudo_Total']].tail(6).to_string())
 # ────────────────────────────────────────────────────────────────
 md(r"""### 2.2  Serie de tiempo — Evolución histórica
 
-Visualización profesional de la serie mensual con:
-- **Media móvil** de 6 meses para suavizar la variabilidad de corto plazo.
-- **Marcadores de picos** en enero y julio (meses de mayor recaudo históricamente).
-- **Línea de media** como referencia de nivel central.
-- **Zona train/test** para visualizar el corte de validación.
+La **visualización de la serie temporal** es el paso más importante del EDA para
+series de tiempo. Un buen gráfico revela instantáneamente tendencia,
+estacionalidad, outliers y cambios de régimen que ningún estadístico resumen captura.
+
+Elementos de la visualización:
+- **Línea azul (serie observada):** Recaudo mensual neto. Los picos y valles
+  revelan el patrón estacional.
+- **Línea roja (media móvil 6M):** Suaviza la variabilidad de corto plazo para
+  revelar la **tendencia subyacente**. Una MA=6 es apropiada porque captura
+  medio ciclo estacional (12/2 = 6 meses).
+- **Marcadores de picos:** Señalan enero y julio, meses de mayor recaudo históricamente,
+  asociados al calendario de giros del SGSS (cierre de vigencias en diciembre
+  y junio genera picos de transferencia en enero y julio).
+- **Línea gris punteada (media global):** Referencia para evaluar si la serie
+  está por encima o por debajo de su nivel promedio.
+- **Zona sombreada train/test:** Delimitación del período de entrenamiento
+  (Oct 2021 -- Sep 2025) vs. validación out-of-sample (Oct -- Dic 2025).
+
+> **Guía de interpretación:** Si la media móvil es creciente, la tendencia es alcista.
+> Si los picos son cada vez más pronunciados, la variabilidad aumenta con el nivel
+> (heterocedasticidad), sugiriendo que una transformación logarítmica sería apropiada.
 """)
 
 code(r"""# ── 2.2 Gráfica de serie de tiempo ────────────────────────────────
@@ -292,12 +393,30 @@ plt.show()
 # ────────────────────────────────────────────────────────────────
 md(r"""### 2.3  Patrones estacionales
 
+La **estacionalidad** es uno de los componentes más importantes de una serie de
+tiempo fiscal. En el contexto de rentas cedidas colombianas, la estacionalidad
+se origina en:
+
+1. **Calendario de transferencias del SGSS:** Los giros de ADRES siguen un ciclo
+   administrativo donde diciembre y junio son meses de cierre de cuentas,
+   generando picos de recaudo en enero y julio.
+2. **Ciclo de consumo:** El IVA al consumo de licores y cervezas tiene picos
+   naturales en diciembre (fiestas) y a mediados de año.
+3. **Regulación fiscal:** Los municipios tienen plazos específicos para reportar
+   y transferir lo recaudado, creando concentración en ciertos meses.
+
 Se analiza la estacionalidad mediante dos visualizaciones complementarias:
 
-1. **Boxplot mensual** — distribución del recaudo por mes del año, revelando
-   la variabilidad intra-mensual y los meses de mayor concentración.
-2. **Heatmap año × mes** — mapa de calor que permite identificar patrones
-   cruzados entre año y mes, útil para detectar *level shifts* interanuales.
+1. **Boxplot mensual** — Muestra la distribución del recaudo para cada mes del año.
+   La **caja** contiene el 50% central de los datos (IQR), la línea roja es la
+   **mediana**, y los *whiskers* extienden hasta 1.5 veces el IQR. Puntos fuera
+   son **outliers**. Meses con cajas más altas tienen *mayor dispersión*.
+
+2. **Heatmap año x mes** — Mapa de calor donde colores más intensos indican
+   meses de mayor recaudo. Permite detectar si el patrón estacional es
+   **estable** (mismo patrón cada año) o **evolutivo** (cambia con el tiempo).
+   También revela *level shifts* — años enteros que son sistemáticamente más
+   altos o bajos que otros.
 """)
 
 code(r"""# ── 2.3 Estacionalidad: Boxplot + Heatmap ────────────────────────
@@ -358,16 +477,36 @@ for m, val in prom_mes.items():
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 ## Fase III — Descomposición, Estacionariedad y Autocorrelación
+
+Esta fase profundiza en las **propiedades estocásticas** de la serie. Mientras que
+la Fase II proporcionó una visión visual e intuitiva, aquí aplicamos herramientas
+estadísticas formales que fundamentarán las decisiones de modelado.
+
 ### 3.1  Descomposición estacional clásica
 
-Se aplica el método de **descomposición clásica** (Cleveland *et al.*, 1990) para
-separar la serie $Y_t$ en sus componentes fundamentales:
+La **descomposición** de una serie de tiempo separa la señal observada $Y_t$ en
+componentes interpretables. El método clásico (Cleveland *et al.*, 1990) propone:
 
 $$Y_t = T_t + S_t + R_t \quad \text{(modelo aditivo)}$$
+$$Y_t = T_t \times S_t \times R_t \quad \text{(modelo multiplicativo)}$$
 
-donde $T_t$ es la tendencia-ciclo, $S_t$ la componente estacional y $R_t$ el residuo.
-Se evalúan tanto el modelo **aditivo** como el **multiplicativo** para determinar
-cuál captura mejor la estructura de la serie.
+donde:
+- $T_t$: **Tendencia-ciclo** — movimiento suave de largo plazo.
+- $S_t$: **Componente estacional** — patrón cíclico de período fijo (12 meses).
+- $R_t$: **Residuo** (o componente irregular) — variación no explicada.
+
+**¿Aditivo o multiplicativo?** Se elige el modelo **aditivo** cuando la amplitud
+de la estacionalidad es constante a lo largo del tiempo. Si la amplitud crece
+con el nivel de la serie (los picos son más pronunciados en años recientes),
+el modelo **multiplicativo** es más apropiado. Una transformación $\log$ convierte
+un modelo multiplicativo en aditivo.
+
+**Métricas de fuerza** (Hyndman & Athanasopoulos, 2021):
+
+$$F_s = \max\left(0, \; 1 - \frac{\text{Var}(R_t)}{\text{Var}(S_t + R_t)}\right)$$
+
+Donde $F_s > 0.64$ indica estacionalidad **significativa**. Análogamente, $F_t$
+mide la fuerza de la tendencia.
 """)
 
 code(r"""# ── 3.1 Descomposición estacional ─────────────────────────────────
@@ -428,17 +567,33 @@ print(f"\n  Interpretación: F > 0.64 indica componente significativo (Hyndman, 
 # ────────────────────────────────────────────────────────────────
 md(r"""### 3.2  Pruebas de estacionariedad
 
-Se aplican dos pruebas complementarias con hipótesis opuestas:
+La **estacionariedad** es un concepto central en el análisis de series de tiempo.
+Una serie es *estacionaria en sentido débil* si su media, varianza y autocovarianza
+no dependen del tiempo. Los modelos ARIMA requieren estacionariedad; si la serie
+no la cumple, debe **diferenciarse** (restar el valor anterior) hasta lograrlo.
+
+Se aplican dos pruebas complementarias con hipótesis **opuestas**, lo cual reduce
+el riesgo de conclusiones erróneas que una sola prueba podría generar:
 
 | Prueba | H₀ | H₁ | Decisión si p < α |
 |--------|----|----|-------------------|
 | **ADF** (Dickey-Fuller Aumentada) | Raíz unitaria (no estacionaria) | Estacionaria | Rechazar H₀ → estacionaria |
 | **KPSS** (Kwiatkowski–Phillips–Schmidt–Shin) | Estacionaria | Raíz unitaria | Rechazar H₀ → no estacionaria |
 
-La combinación ADF + KPSS permite un diagnóstico robusto:
+**¿Qué es una raíz unitaria?** En términos intuitivos, una serie con raíz unitaria
+es como un *paseo aleatorio*: los shocks (perturbaciones) tienen efecto permanente
+y la serie no tiende a regresar a su media. Esto significa que los pronósticos a
+largo plazo tendrán incertidumbre creciente.
+
+La **combinación ADF + KPSS** proporciona un diagnóstico robusto:
 - ADF rechaza + KPSS no rechaza → **estacionaria** ✅
 - ADF no rechaza + KPSS rechaza → **no estacionaria** ✗
-- Ambas rechazan → **estacionaria con tendencia** (diferenciación necesaria)
+- Ambas rechazan → **estacionaria con tendencia** (requiere diferenciación)
+- Ninguna rechaza → **resultado inconcluso** (inspeccionar visualmente)
+
+> **Implicación para el modelado:** Si la serie es no estacionaria, se establece
+> el parámetro $d=1$ (o superior) para modelos ARIMA/SARIMA. Si además hay
+> no-estacionariedad estacional, se añade $D=1$ en la componente estacional.
 """)
 
 code(r"""# ── 3.2 Pruebas de estacionariedad ────────────────────────────────
@@ -527,13 +682,28 @@ plt.show()
 # ────────────────────────────────────────────────────────────────
 md(r"""### 3.3  Funciones de autocorrelación (ACF / PACF)
 
-Los correlogramas permiten identificar la **estructura de dependencia temporal** 
-de la serie, fundamental para parametrizar modelos ARIMA/SARIMA:
+Los **correlogramas** son herramientas fundamentales de la metodología **Box-Jenkins**
+(1970) para identificar la estructura de dependencia temporal de una serie.
 
-- **ACF** → patrones de decaimiento indican el orden MA ($q$) y la estacionalidad.
-  Picos significativos en lags múltiplos de 12 confirman estacionalidad anual.
-- **PACF** → cortes abruptos indican el orden AR ($p$).
-  Picos en lag 12 sugieren componente AR estacional ($P$).
+**ACF (Autocorrelación):** Mide la correlación entre $Y_t$ y $Y_{t-k}$ para
+cada rezago $k$. Incluye los efectos indirectos a través de rezagos intermedios.
+- Decaimiento **exponencial** sugiere un proceso AR.
+- Corte **abrupto** en lag $q$ sugiere un proceso MA(q).
+- **Picos** en lag 12, 24... confirman estacionalidad anual ($s=12$).
+
+**PACF (Autocorrelación Parcial):** Mide la correlación entre $Y_t$ y $Y_{t-k}$
+**removiendo** el efecto de los rezagos intermedios $Y_{t-1}, ..., Y_{t-k+1}$.
+- Corte **abrupto** en lag $p$ sugiere un proceso AR(p).
+- Pico significativo en lag 12 sugiere componente AR estacional $P \geq 1$.
+
+> **Reglas prácticas de Box-Jenkins:**
+> - Si ACF decae y PACF corta en lag $p$ → modelo AR(p)
+> - Si ACF corta en lag $q$ y PACF decae → modelo MA(q)
+> - Si ambas decaen → modelo ARMA(p,q)
+> - Picos estacionales en lag 12 → añadir componente $(P,D,Q)_{12}$
+
+Se analizan tanto la **serie original** como la **primera diferencia** ($d=1$)
+para comparar la estructura antes y después de remover la tendencia.
 """)
 
 code(r"""# ── 3.3 ACF / PACF ───────────────────────────────────────────────
@@ -608,10 +778,29 @@ if any(l in sig_lags for l in [1, 2, 3]):
 # ────────────────────────────────────────────────────────────────
 md(r"""### 3.4  Análisis de distribución
 
-Se evalúa la distribución marginal de la serie mensual para determinar
-si se requieren transformaciones (log, Box-Cox) antes del modelado.
-Se aplican la prueba de **Jarque-Bera** (normalidad) y se calculan los
-momentos de tercer y cuarto orden (asimetría, curtosis).
+Conocer la **distribución marginal** de la serie es esencial para:
+1. Decidir si se requieren **transformaciones** (log, Box-Cox) antes del modelado.
+2. Validar supuestos de normalidad en los residuos de los modelos.
+3. Identificar **asimetría** y **colas pesadas** que afectan la estimación.
+
+Se evalúa la distribución mediante tres visualizaciones y dos pruebas formales:
+
+**Visualizaciones:**
+- **Histograma + KDE + Normal teórica:** Si la curva KDE (azul) difiere de la
+  normal teórica (línea gris), la serie no es gaussiana.
+- **Gráfico Q-Q:** Si los puntos se alínean sobre la diagonal roja, la
+  distribución es normal. Desviaciones en las colas indican colas pesadas.
+- **Diagrama de violín:** Combina un boxplot con la densidad kernel, revelando
+  la forma completa de la distribución (bimodalidad, asimetría).
+
+**Pruebas formales de normalidad:**
+- **Jarque-Bera:** Compara asimetría y curtosis observadas contra los valores
+  esperados bajo normalidad ($\text{Skew}=0$, $\text{Kurt}=3$).
+- **Shapiro-Wilk:** Prueba omnibus de normalidad, con mayor potencia en muestras pequeñas.
+
+> **Implicación:** Si la serie no es normal (en particular, si es asimétrica
+> positiva), la transformación $\log(1+x)$ estabiliza la varianza y simetriza
+> la distribución, mejorando el rendimiento de modelos lineales como SARIMA.
 """)
 
 code(r"""# ── 3.4 Distribución de la serie ──────────────────────────────────
@@ -683,14 +872,34 @@ print(f"  Shapiro-Wilk:         stat={shap_stat:.4f}, p={shap_p:.6f}  {'→ NO N
 # ════════════════════════════════════════════════════════════════
 md(r"""---
 ## Fase IV — Análisis en Valores Reales, Crecimiento Interanual y Correlación Macro
+
+Esta fase contextualiza el recaudo dentro del entorno macroeconómico colombiano.
+Los datos fiscales nominales pueden crear una **ilusión de crecimiento** cuando la
+inflación es alta: si el recaudo crece 10% pero la inflación es 8%, el crecimiento
+real es solo del 2%. La **deflación** permite aislar el crecimiento genuino del
+recaudo del efecto de la pérdida de poder adquisitivo del peso.
+
 ### 4.1  Deflación con IPC — Serie en valores reales
 
-El recaudo nominal está afectado por la inflación acumulada. Para aislar el
-crecimiento **real** del recaudo, se deflacta la serie utilizando el IPC anual
-registrado en `MACRO_DATA`. Se construye un **índice de precios base 2021** y se
-calcula:
+Para convertir la serie de recaudo nominal a **términos reales** (poder de compra
+constante), se construye un índice de precios con base 2021 = 100 utilizando el
+IPC (Indice de Precios al Consumidor) anual. La fórmula de deflación es:
 
 $$\text{Recaudo Real}_t = \frac{\text{Recaudo Nominal}_t}{\text{Índice IPC}_t} \times 100$$
+
+Donde el índice IPC se construye acumulativamente:
+$$\text{Índice IPC}_{2022} = 100 \times (1 + \text{IPC}_{2022}/100)$$
+$$\text{Índice IPC}_{2023} = \text{Índice IPC}_{2022} \times (1 + \text{IPC}_{2023}/100)$$
+
+> **Ejemplo práctico:** Si en 2023 el recaudo fue \$100M y el índice IPC es 125.7
+> (inflación acumulada del 25.7% desde 2021), el recaudo real es
+> \$100M / 125.7 x 100 = \$79.6M en pesos de 2021. El crecimiento real es
+> sustancialmente menor que el nominal.
+
+> **¿Por qué deflactamos los modelos?** Los modelos predictivos (SARIMAX, Prophet,
+> XGBoost, LSTM) trabajan con la serie nominal pero incluyen el IPC como regresor
+> exógeno. La deflación aquí es un ejercicio analítico para comprender la dinámica
+> real del recaudo; no reemplaza el tratamiento de la inflación dentro de cada modelo.
 """)
 
 code(r"""# ── 4.1 Deflación con IPC ─────────────────────────────────────────
@@ -757,10 +966,23 @@ print(f"  Diferencia (efecto inflación):     {crec_nom - crec_real:+.1f} pp")
 # ────────────────────────────────────────────────────────────────
 md(r"""### 4.2  Crecimiento interanual (YoY)
 
-Se calcula la tasa de crecimiento interanual $g_t = (Y_t / Y_{t-12} - 1) \times 100$
-para meses con datos completos disponibles. Este indicador permite:
-- Identificar **aceleraciones** o **desaceleraciones** del recaudo.
-- Comparar con tasas de crecimiento de variables macro (IPC, Salario, Consumo).
+La tasa de crecimiento **interanual** (*Year-over-Year*, YoY) es el indicador
+estándar para evaluar la dinámica de cualquier variable fiscal:
+
+$$g_t = \left(\frac{Y_t}{Y_{t-12}} - 1\right) \times 100$$
+
+Comparar el mismo mes del año anterior elimina automáticamente el efecto
+estacional (enero con enero, julio con julio), permitiendo evaluar el
+crecimiento *neto de estacionalidad*.
+
+Se calculan dos variantes:
+- **YoY Nominal:** Crecimiento en pesos corrientes (incluye inflación).
+- **YoY Real:** Crecimiento deflactado (aislando el poder de compra).
+
+> **Interpretación:** Tasas YoY positivas indican *aceleración* del recaudo;
+negativas indican *desaceleración*. Una tasa nominal positiva pero real negativa
+significa que el recaudo crece menos que la inflación — i.e., hay **erosión**
+del ingreso fiscal en términos reales.
 """)
 
 code(r"""# ── 4.2 Crecimiento interanual (YoY) ─────────────────────────────
@@ -828,9 +1050,25 @@ print(resumen_anual.to_string())
 # ────────────────────────────────────────────────────────────────
 md(r"""### 4.3  Concentración del recaudo — Análisis de Pareto
 
-Se examina la **concentración** del recaudo por entidad aportante y por
-concepto, para identificar si un pequeño número de contribuyentes genera
-la mayor parte del ingreso (principio de Pareto 80/20).
+El **principio de Pareto** (también conocido como regla 80/20) establece que
+frecuentemente un pequeño porcentaje de las categorías concentra la mayor
+parte del valor total. En el contexto fiscal, esto significa que pocos
+subgrupos fuente y pocas entidades aportantes podrían generar la mayor parte
+del recaudo.
+
+**¿Por qué importa para el pronóstico?** Si el recaudo está altamente concentrado
+en pocas fuentes, los modelos de pronóstico agregados son vulnerables a
+perturbaciones en las fuentes dominantes. Una política que afecte al principal
+aportante impactaría desproporcionadamente la serie total.
+
+Se complementa con el **coeficiente de Gini** (0 = distribución perfectamente
+igualitaria, 1 = toda la concentración en una sola categoría), que cuantifica
+el grado de concentración de forma resumida.
+
+> **Lectura de la curva de Pareto:** El eje izquierdo muestra el recaudo por
+> categoría (barras), y el eje derecho muestra el porcentaje acumulado (línea
+> roja). El punto donde la línea cruza el umbral del 80% revela cuántas
+> categorías concentran el 80% del recaudo total.
 """)
 
 code(r"""# ── 4.3 Concentración del recaudo ─────────────────────────────────
@@ -901,12 +1139,27 @@ md(r"""### 4.4  Correlación con variables macroeconómicas
 
 Se construye una tabla anual de recaudo vs. indicadores macroeconómicos
 (IPC, Salario Mínimo, UPC, Consumo de Hogares) para explorar posibles
-relaciones que justifiquen el uso de regresores exógenos en modelos
+relaciones que justifiquen el uso de **regresores exógenos** en modelos
 SARIMAX y XGBoost.
 
+**¿Qué es un regresor exógeno?** En el contexto de series de tiempo, un
+regresor exógeno es una variable externa que ayuda a explicar los movimientos
+de la serie objetivo. Por ejemplo, si el recaudo de licores se correlaciona
+fuertemente con el Consumo de Hogares, incluir esta variable en el modelo
+puede mejorar las predicciones.
+
+Las variables macro disponibles son:
+- **IPC** (Inflación): Afecta el valor nominal de todas las transacciones gravadas.
+- **Salario Mínimo (SMLV):** Proxy del ingreso disponible de la población.
+- **UPC** (Unidad de Pago por Capitación): Valor que el SGSS paga por asegurado.
+- **Consumo de Hogares:** Medida directa de la demanda agregada.
+- **Desempleo:** Indicador de actividad económica y poder adquisitivo.
+
 > **Nota metodológica.** Con solo 4–5 años completos, los coeficientes de
-> correlación son indicativos pero no concluyentes. El análisis formal
-> se profundiza en el notebook `03_Correlacion_Macro.ipynb`.
+> correlación son *indicativos* pero no concluyentes estadísticamente.
+> El análisis formal con pruebas de significancia y correlación cruzada
+> rezagada se profundiza en el notebook `03_Correlacion_Macro.ipynb`,
+> donde se incrementa la resolución temporal a nivel mensual.
 """)
 
 code(r"""# ── 4.4 Correlación con variables macro ──────────────────────────
@@ -982,7 +1235,12 @@ else:
 md(r"""---
 ## Exportación de Datos Procesados
 
-Se persisten los artefactos generados para consumo aguas abajo:
+Se persisten los artefactos generados para consumo en notebooks posteriores.
+Esta práctica de **persistencia intermedia** asegura reproducibilidad:
+cada notebook lee datos procesados del anterior, evitando que cambios en
+un paso afecten silenciosamente los resultados de pasos posteriores.
+
+**Artefactos generados:**
 - `serie_mensual.csv` — Serie mensual con recaudo nominal, real, índice IPC y crecimiento YoY.
 - Figuras en `outputs/figures/` en formato PNG a 300 DPI.
 """)
