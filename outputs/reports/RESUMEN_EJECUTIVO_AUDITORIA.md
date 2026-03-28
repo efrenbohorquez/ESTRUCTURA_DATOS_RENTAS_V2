@@ -67,9 +67,8 @@
 │  ──────────────────┼─────────┼────────┼────────┼────────────│
 │  XGBoost ★ BEST  │ 5.05%   │$15.4MM │$13.8MM │ 8.13 ★     │
 │  Prophet         │ 6.30%   │$28.7MM │$19.3MM │ 14.51      │
-│  SARIMAX         │ 13.99%  │$42.5MM │$39.6MM │ 17.09      │
-│  SARIMA          │ 13.99%  │$42.5MM │$39.6MM │ 17.09      │
-│  LSTM (eliminar)│ 23.52%  │$73.5MM │$59.6MM │ 44.80      │
+│  SARIMAX         │ 9.75%   │$37.0MM │$28.9MM │ 16.31      │
+│  LSTM            │ 13.58%  │$39.7MM │$35.3MM │ 37.84      │
 │                                                              │
 │  Test Period: Oct-Dic 2025 (Out-of-Sample)                │
 │  Mejora vs Baseline Lineal: ↓80% (25.0% → 5.05%)          │

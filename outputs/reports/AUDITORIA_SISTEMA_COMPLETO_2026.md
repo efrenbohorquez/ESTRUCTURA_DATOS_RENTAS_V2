@@ -74,9 +74,8 @@ Dataset Modelado (25 características + lags)
 |------|--------|-------------|------------|-----------|-----------------|-------|-----------|
 | 🥇 | **XGBoost** | **5.05%** | 15.4 | 13.8 | **4.99%** | -13.8 | ✅ **ÓPTIMO** |
 | 🥈 | Prophet | 6.30% | 28.7 | 19.3 | 5.03% | -13.9 | ✅ Muy Bueno |
-| 🥉 | SARIMAX | 13.99% | 42.5 | 39.6 | 2.46% | -6.8 | ⚠️ Limitado |
-| — | SARIMA | 13.99% | 42.5 | 39.6 | 2.46% | -6.8 | ⚠️ Limitado |
-| — | LSTM | 23.52% | 73.5 | 59.6 | 21.60% | 59.6 | ❌ Inefectivo |
+| 🥉 | SARIMAX | 9.75% | 37.0 | 28.9 | 6.48% | -17.9 | ✅ Aceptable |
+| — | LSTM | 13.58% | 39.7 | 35.3 | 7.83% | 21.6 | ⚠️ Limitado |
 
 **Score Ponderado (Metodología):**
 - MAPE: 40% × inversión normalizada
@@ -84,14 +83,14 @@ Dataset Modelado (25 características + lags)
 - Parsimonia: 20%
 - Forma 2de2 (conservadurismo): 10%
 
-**Resultado:** XGBoost Score = **8.13** (vs. Prophet 14.51, LSTM 44.80)
+**Resultado:** XGBoost Score = **8.13** (vs. Prophet 14.51, SARIMAX 16.31, LSTM 37.84)
 
 #### 2.2 Datos de Entrenamiento y Prueba
 
 | Período | Meses | Rol | Dataset |
 |--------|-------|-----|---------|
-| Oct 2021 – Aug 2025 | 36 | **Entrenamiento** | 36 meses (75%) |
-| Sep 2025 – Dic 2025 | 3 | **Prueba** | 3 meses (25%) — **Out-of-Sample** |
+| Oct 2021 – Sep 2025 | 48 | **Entrenamiento** | 48 meses (~94%) |
+| Oct 2025 – Dic 2025 | 3 | **Prueba** | 3 meses (~6%) — **Out-of-Sample** |
 
 **Validación Temporal:** ✅ Respetada división cronológica (sin data leakage)
 
@@ -184,7 +183,7 @@ graph LR
 
 | Decisión | Documento | Justificación | Quién/Cuándo |
 |----------|-----------|____________|-----------|
-| XGBoost como modelo recomendado | `recomendacion_modelo_2026.txt` | MAPE 5.05% < Prophet 6.30% < SARIMAX 13.99% | Auto 2026-03-10 |
+| XGBoost como modelo recomendado | `recomendacion_modelo_2026.txt` | MAPE 5.05% < Prophet 6.30% < SARIMAX 9.75% | Auto 2026-03-10 |
 | Corte entrenamiento Sep 2025 | `notebooks/00_config.py` línea TRAIN_END | Validación temporal correcta, test OOS Oct-Dic | Definido en config |
 | Deflación IPC Oct 2021 = 100 | `notebooks/01_EDA_Completo.ipynb` (§1.3) | Base temporal reproducible | Auditable en notebook |
 | Lag_12 como predictor crucial | `outputs/reports/xgboost_feature_importance.csv` | Gain 27.2% (2do lugar), refleja estacionalidad anual | Optuna optimización |
@@ -204,7 +203,6 @@ outputs/reports/
 │   ├─ prophet_metricas.csv              ✅ Config + params
 │   ├─ lstm_metricas.csv                 ✅ Config + params
 │   ├─ sarimax_metricas.csv              ✅ Config + params
-│   ├─ sarima_metricas.csv               ✅ Config + params
 │   └─ xgboost_feature_importance.csv    ✅ 10 features con gain %
 │
 ├── Reportes Temáticos
@@ -266,11 +264,10 @@ outputs/reports/
         ↓
 03_Correlacion_Macro.ipynb       [Integración variables exógenas]
         ↓
-├─→ 04_SARIMAX.ipynb              [Modelo 1]
-├─→ 04_SARIMAX.ipynb             [Modelo 2]
-├─→ 05_Prophet.ipynb             [Modelo 3]
-├─→ 06_XGBoost.ipynb             [Modelo 4] ← GANADOR
-└─→ 07_LSTM.ipynb                [Modelo 5]
+├─→ 04_SARIMAX.ipynb             [Modelo 1]
+├─→ 05_Prophet.ipynb             [Modelo 2]
+├─→ 06_XGBoost.ipynb             [Modelo 3] ← GANADOR
+└─→ 07_LSTM.ipynb                [Modelo 4]
         ↓
 08_Comparacion_Modelos.ipynb     [EVALUACIÓN COMPARATIVA]
         ↓ [SALIDA: Métricas consolidadas + recomendación]
@@ -332,7 +329,7 @@ outputs/reports/
    - Impacto: Medio (variable con Gain 0% en XGBoost, pero meta-importante)
 
 2. **LSTM Sobre-Parametrizado:**
-   - 149 K parámetros para 36 meses entrenamiento = 272 muestras/parámetro
+   - 149 K parámetros para 48 meses entrenamiento → ratio muestras/parámetro muy bajo
    - MAPE 23.52% (4x peor que XGBoost)
    - Recomendación: Eliminar de producción; mantener solo para futura investigación
 
@@ -341,9 +338,9 @@ outputs/reports/
    - Excel fuente BaseRentasCedidasVF.xlsx es CRÍTICO pero no en control versión
    - Recomendación: Ingresrar Excel con hashsum o documentar linaje completamente
 
-4. **Validación Cruzada Limitada en SARIMAX:**
-   - SARIMAX y SARIMA = MAPE idéntico 13.99% (variable exógena no contribuyó)
-   - Sugerencia: Investigación adicional sobre especificación de regresores
+4. **Margen de Mejora en SARIMAX:**
+   - SARIMAX MAPE 9.75% con exógena IPC_Idx; tercer mejor modelo del ensemble
+   - Sugerencia: explorar regresores adicionales (Desempleo, Consumo_Hog) para reducir error
 
 #### 7.3 Riesgos Residuales
 

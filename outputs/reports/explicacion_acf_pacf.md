@@ -76,9 +76,9 @@
 
 ---
 
-## 4. Diagnóstico para Modelado SARIMA
+## 4. Diagnóstico para Modelado SARIMAX
 
-De los 4 paneles se extraen los **órdenes del modelo SARIMA(p,d,q)(P,D,Q)[s]**:
+De los 4 paneles se extraen los **órdenes del modelo SARIMAX(p,d,q)(P,D,Q)[s]**:
 
 ### 4.1 Componente no estacional (p, d, q)
 
@@ -100,10 +100,10 @@ De los 4 paneles se extraen los **órdenes del modelo SARIMA(p,d,q)(P,D,Q)[s]**:
 ### 4.3 Modelo inicial recomendado
 
 ```
-SARIMA(1,1,1)(1,1,1)[12]
+SARIMAX(1,1,1)(1,1,1)[12] + exógenas
 ```
 
-> Este es el modelo "airline" clásico de Box-Jenkins, punto de partida más utilizado en series con estacionalidad mensual. Se debe validar con auto_arima y criterios AIC/BIC.
+> Este es el modelo "airline" clásico de Box-Jenkins con extensión para variables exógenas (IPC_Idx). Se valida con `auto_arima` de pmdarima y criterios AIC/BIC. El notebook `04_SARIMAX.ipynb` implementa la búsqueda automática de órdenes.
 
 ---
 
@@ -115,7 +115,7 @@ SARIMA(1,1,1)(1,1,1)[12]
 |---------------|---------------|
 | Usar `auto_arima` de `pmdarima` para búsqueda automática | Confirma o mejora la identificación visual ACF/PACF |
 | Reportar **AIC, BIC y HQIC** del modelo seleccionado | Estándar académico para comparación de modelos |
-| Comparar SARIMA(1,1,1)(1,1,1)[12] vs variantes | Probar (2,1,1)(1,1,1)[12] y (1,1,2)(1,1,1)[12] como alternativas |
+| Comparar SARIMAX(1,1,1)(1,1,1)[12] vs variantes | Probar (2,1,1)(1,1,1)[12] y (1,1,2)(1,1,1)[12] como alternativas |
 
 ### 5.2 Sobre la estacionalidad dual
 

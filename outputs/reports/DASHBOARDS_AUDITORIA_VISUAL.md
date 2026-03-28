@@ -39,9 +39,8 @@
 ║  ──────────────────────────────────────────────────────────────────── ║
 ║  XGBoost ★   5.05%   $15.4MM   $13.8MM    4.99%    8.13   ✅ USAR     ║
 ║  Prophet     6.30%   $28.7MM   $19.3MM    5.03%   14.51   🟡 APOYO    ║
-║  SARIMAX    13.99%   $42.5MM   $39.6MM    2.46%   17.09   ⚠️ RESPALDO ║
-║  SARIMA     13.99%   $42.5MM   $39.6MM    2.46%   17.09   ⚠️ RESPALDO ║
-║  LSTM       23.52%   $73.5MM   $59.6MM   21.60%   44.80   ❌ ELIMINAR ║
+║  SARIMAX     9.75%   $37.0MM   $28.9MM    6.48%   16.31   ⚠️ RESPALDO ║
+║  LSTM       13.58%   $39.7MM   $35.3MM    7.83%   37.84   ⚠️ LIMITADO ║
 ║                                                                        ║
 ║  Métricas en dataset prueba: Oct-Dic 2025 (Out-of-Sample)           ║
 ║  Mejora vs Baseline Histórico: XGBoost reduce error de 25% → 5% (↓80%)║
@@ -352,11 +351,11 @@
 ║    ├─ Consumo                     ✅ OK      95%      ← BM API     │  ║
 ║    └─ UPC                         ⚠️ PEND    40%      ← MinSalud   │  ║
 ║                                                                     │  ║
-║  🤖 MODELOS PREDICTIVOS           ✅ OK      92%      ← 5 validados│  ║
+║  🤖 MODELOS PREDICTIVOS           ✅ OK      92%      ← 4 validados│  ║
 ║    ├─ XGBoost (GANADOR)           ✅ OK      98%      ← MAPE 5.05% │  ║
 ║    ├─ Prophet (Alternativa)       ✅ OK      95%      ← MAPE 6.30% │  ║
-║    ├─ SARIMAX/SARIMA              ✅ OK      90%      ← Respaldo   │  ║
-║    └─ LSTM (Eliminar)             ❌ NO      0%       ← Inefectivo │  ║
+║    ├─ SARIMAX (Respaldo)          ✅ OK      90%      ← MAPE 9.75% │  ║
+║    └─ LSTM (Limitado)             ⚠️ PEND    70%      ← MAPE 13.58%│  ║
 ║                                                                     │  ║
 ║  📚 DOCUMENTACIÓN                 ✅ OK      97%      ← 47 artefact│  ║
 ║    ├─ Notebooks                   ✅ OK      100%     ← 9 completos│  ║

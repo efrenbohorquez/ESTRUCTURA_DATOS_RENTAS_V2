@@ -277,11 +277,17 @@ def zona_train_test(ax, train_end, test_start, ymin=None, ymax=None):
     if ymax is None:
         ymax = ax.get_ylim()[1]
     
+    # Preservar límites originales del eje X
+    xlim = ax.get_xlim()
+    
     # Zona prueba (sombreado suave)
-    ax.axvspan(test_start, ax.get_xlim()[1], alpha=0.08, color=C_TEST,
+    ax.axvspan(test_start, xlim[1], alpha=0.08, color=C_TEST,
                label='Zona Prueba', zorder=0)
     ax.axvline(x=test_start, color=C_TEST, linestyle='--', linewidth=1.2,
                alpha=0.7, zorder=2)
+    
+    # Restaurar límites para evitar expansión involuntaria del eje
+    ax.set_xlim(xlim)
     
     # Etiqueta del corte
     ax.text(test_start, ymax * 0.95, ' Prueba →', fontsize=8, color=C_TEST,

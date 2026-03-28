@@ -1,6 +1,0 @@
-ASIMETRIA ESTRUCTURAL
-=====================
-Total Departamentos: 1138
-Concentracion Top 5: 47.96%
-Total Municipios: 3
-Recaudo del 50% de municipios con menor ingreso: 0.04%
