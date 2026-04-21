@@ -713,6 +713,140 @@ print(f"\n  ✅ Pronóstico OOS guardado: xgboost_forecast.csv")""")
 
 
 # ════════════════════════════════════════════════════════════════
+# CELDA 8b — MARKDOWN: Figura Mejorada — Pronóstico vs Real
+# ════════════════════════════════════════════════════════════════
+md(r"""---
+
+### Figura Embellecida: Pronóstico vs Real con IC 95%
+
+La siguiente visualización mejora la figura estándar con:
+
+- **Intervalo de confianza al 95%** mediante bootstrap de residuos (1,000 remuestreos)
+- **Métricas embebidas** (MAPE, RMSE, MAE) en caja de información
+- **Error % anotado** sobre cada punto (verde = sobrestimación, rojo = subestimación)  
+- **Contexto histórico** (últimos 18 meses de entrenamiento en gris)
+- **Aspectos 16:9** para compatibilidad con presentaciones ejecutivas
+- **Tipografía profesional** con marcas de agua de auditoría""")
+
+
+# ════════════════════════════════════════════════════════════════
+# CELDA 8c — CÓDIGO: Figura Mejorada Professional Grade
+# ════════════════════════════════════════════════════════════════
+code(r"""# ══════════════════════════════════════════════════════════════
+# FIGURA MEJORADA: Pronóstico vs Real con IC 95% y Métricas
+# Legibilidad profesional — 16:9, MAPE/RMSE embebidas
+# ══════════════════════════════════════════════════════════════
+
+fig = plt.figure(figsize=(16, 9))
+gs = fig.add_gridspec(1, 1)
+ax = fig.add_subplot(gs[0, 0])
+
+# ── Series de entrenamiento (contexto últimos 18 meses) ──
+n_context = min(18, len(y_train))
+train_context_idx = X_train.index[-n_context:]
+train_context_vals = y_train_raw.values[-n_context:]
+
+ax.plot(train_context_idx, train_context_vals / 1e9,
+        color='#95A5A6', linewidth=1.8, linestyle='--', alpha=0.6,
+        label='Entrenamiento (últimos 18 meses)', zorder=1)
+
+# ── Intervalo de confianza (sombreado) ──
+ax.fill_between(X_test.index, ci_lower / 1e9, ci_upper / 1e9,
+                color=C_QUINARY, alpha=0.15, label='IC 95% (Bootstrap)', zorder=2)
+
+# ── Serie real (Oct-Dic 2025) ──
+ax.plot(X_test.index, y_real / 1e9,
+        color=C_PRIMARY, linewidth=3.0, marker='o', markersize=10,
+        label='Real (Observado)', zorder=4, markerfacecolor=C_PRIMARY,
+        markeredgecolor='white', markeredgewidth=2)
+
+# ── Pronóstico XGBoost ──
+ax.plot(X_test.index, y_pred_real / 1e9,
+        color=C_QUINARY, linewidth=3.0, marker='s', markersize=10,
+        label='XGBoost (Pronóstico)', zorder=5, markerfacecolor=C_QUINARY,
+        markeredgecolor='white', markeredgewidth=2)
+
+# ── Línea de separación entrenamiento/prueba ──
+ax.axvline(pd.Timestamp(TEST_START), color='#7F8C8D', linestyle='--', 
+           linewidth=1.5, alpha=0.5, zorder=1)
+ax.text(pd.Timestamp(TEST_START) - pd.Timedelta(days=20), 
+        ax.get_ylim()[1] * 0.95,
+        'Inicio\nValidación →', fontsize=9, ha='right',
+        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='#7F8C8D', alpha=0.8))
+
+# ── Formateo de ejes ──
+ax.xaxis.set_major_locator(mdates.MonthLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%b\n%Y'))
+ax.tick_params(axis='x', labelsize=9)
+ax.tick_params(axis='y', labelsize=10)
+ax.set_xlim(pd.Timestamp('2024-02-15'), pd.Timestamp('2026-01-15'))
+ax.grid(True, alpha=0.25, linestyle='-', linewidth=0.8)
+ax.set_axisbelow(True)
+
+# ── Etiquetas metricas en puntos de datos ──
+for j, fecha in enumerate(X_test.index):
+    # Error % en rojo o verde sobre cada punto real
+    err_pct = (y_pred_real[j] - y_real[j]) / y_real[j] * 100
+    color_err = '#27AE60' if err_pct >= 0 else '#C0392B'
+    bbox_props = dict(boxstyle='round,pad=0.4', facecolor='white', 
+                      edgecolor=color_err, linewidth=2, alpha=0.95)
+    ax.text(fecha, y_real[j] / 1e9 + 20, f'{err_pct:+.1f}%',
+            ha='center', va='bottom', fontsize=9, fontweight='bold',
+            color=color_err, bbox=bbox_props)
+
+# ── Leyenda mejorada ──
+leg1 = ax.legend(loc='upper left', fontsize=11, frameon=True,
+                 fancybox=True, shadow=True, edgecolor='#34495E')
+
+# ── Caja de información de métricas ──
+info_text = f'MÉTRICAS DE VALIDACIÓN\n' \
+            f'━━━━━━━━━━━━━━━━━━━━\n' \
+            f'MAPE: {mape:.2f}%\n' \
+            f'RMSE: ${rmse/1e9:.2f}MM COP\n' \
+            f'MAE: ${mae/1e9:.2f}MM COP\n' \
+            f'n = {len(X_test)} meses'
+
+bbox_metrics = dict(boxstyle='round,pad=0.8', facecolor='#ECF0F1',
+                    edgecolor=C_QUINARY, linewidth=2.5, alpha=0.95)
+ax.text(0.98, 0.97, info_text,
+        transform=ax.transAxes, fontsize=11, fontweight='bold',
+        verticalalignment='top', horizontalalignment='right',
+        bbox=bbox_metrics, family='monospace')
+
+# ── Títulos y etiquetas ──
+if _VIZ_THEME_LOADED:
+    titulo_profesional(ax,
+                       'XGBoost: Pronóstico vs Real (Oct–Dic 2025)',
+                       f'Predicción Out-of-Sample con IC 95% | Variable Objetivo: Recaudo Total')
+    formato_pesos_eje(ax, eje='y')
+else:
+    ax.set_title('XGBoost: Pronóstico vs Real (Oct–Dic 2025)\n' +
+                 f'MAPE = {mape:.2f}% | RMSE = ${rmse/1e9:.2f}MM COP',
+                 fontsize=14, fontweight='bold', pad=20)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(formato_pesos))
+
+ax.set_ylabel('Recaudo Mensual (MM COP)', fontsize=12, fontweight='bold')
+ax.set_xlabel('Fecha', fontsize=12, fontweight='bold')
+
+plt.tight_layout()
+if _VIZ_THEME_LOADED:
+    marca_agua(fig)
+    guardar_figura(fig, '06_xgboost_pronostico_vs_real_mejorado', OUTPUTS_FIGURES)
+plt.show()
+
+print(f"{'═'*70}")
+print(f"✅ Figura 'Pronóstico vs Real' creada y guardada")
+print(f"{'═'*70}")
+print(f"  Archivo: 06_xgboost_pronostico_vs_real_mejorado.png")
+print(f"  Características:")
+print(f"    • IC 95% mediante bootstrap de residuos")
+print(f"    • Métricas MAPE/RMSE/MAE embebidas")
+print(f"    • Error % anotado sobre cada punto (verde=+, rojo=−)")
+print(f"    • Contexto histórico (últimos 18 meses entrenamiento)")
+print(f"    • Legibilidad profesional (16:9, fuentes de contraste)")""")
+
+
+# ════════════════════════════════════════════════════════════════
 # CELDA 9 — MARKDOWN: Fase V
 # ════════════════════════════════════════════════════════════════
 md(r"""---

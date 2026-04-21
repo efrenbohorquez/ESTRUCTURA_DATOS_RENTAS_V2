@@ -742,7 +742,7 @@ print(f'  la asimetria documentada por Bonet & Meisel (2007)')
 # CELDA 13 — CODE: Visualizacion Bogota vs Choco (4 paneles)
 # ════════════════════════════════════════════════════════════════
 code(r"""# --- 4.3 Visualizacion comparativa ---
-fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig, axes = plt.subplots(2, 2, figsize=(16, 9))
 
 # Panel A: Series temporales (doble eje)
 ax1 = axes[0, 0]
@@ -753,7 +753,7 @@ l2 = ax1_r.plot(s_cho.index, s_cho.values / 1e6, color=C_SECONDARY, linewidth=2.
                 label='Choco', alpha=0.9, linestyle='--')
 ax1.set_ylabel('Bogota (Miles MM COP)', fontdict=FONT_AXIS, color=C_PRIMARY)
 ax1_r.set_ylabel('Choco (Millones COP)', fontdict=FONT_AXIS, color=C_SECONDARY)
-ax1.set_title('Perfil Estacional Fiscal Comparativo\nBogota vs Choco',
+ax1.set_title('Electrocardiograma Fiscal Comparativo\nBogota vs Choco',
               fontdict=FONT_TITLE, pad=12)
 lines = l1 + l2
 ax1.legend(lines, [l.get_label() for l in lines],
@@ -776,7 +776,7 @@ ax2.axhline(y=0, color=C_TEXT_LIGHT, linewidth=0.8, alpha=0.5)
 ax2.set_xticks(x_m)
 ax2.set_xticklabels(MESES_LABELS, fontsize=9, fontfamily='serif')
 ax2.set_ylabel('Recaudo Normalizado (z-score)', fontdict=FONT_AXIS)
-ax2.set_title('Perfil Estacional Normalizado\n(Comparacion de Forma)',
+ax2.set_title('Electrocardiograma Estacional\n(Comparacion de Forma)',
               fontdict=FONT_TITLE, pad=12)
 ax2.legend(prop={'family': 'serif', 'size': 9})
 ax2.grid(True, alpha=0.3)
