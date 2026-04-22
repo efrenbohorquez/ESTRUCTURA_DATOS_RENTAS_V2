@@ -1,2 +1,2 @@
 Modelo,Transformacion,Serie,Train_efectivo,Test,Features,N_estimators,Max_depth,Learning_rate,Optimizacion,MAPE,RMSE_MM,MAE_MM,Top_Feature,Top_Feature_Gain_pct
-XGBoost,log1p,"Oct 2021 – Dic 2025 (51 meses, serie completa)",36 meses (tras lags),3 meses (Oct–Dic 2025),25,152,5,0.27828005449197507,Optuna (200 trials),5.05,15.4,13.8,MA_3,29.7
+XGBoost,log1p,"Oct 2021 – Dic 2025 (51 meses, serie completa)",36 meses (tras lags),3 meses (Oct–Dic 2025),25,223,5,0.06863163331347959,Optuna (200 trials),4.55,13.2,12.8,Lag_12,33.2

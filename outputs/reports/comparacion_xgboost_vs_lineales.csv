@@ -1,4 +1,4 @@
 Rank,Modelo,MAPE,RMSE_MM,MAE_MM
-1,XGBoost,5.05,15.4,13.8
+1,XGBoost,4.55,13.2,12.8
 2,Prophet,6.3,28.7,19.3
 3,SARIMAX,9.75,37.0,28.9
