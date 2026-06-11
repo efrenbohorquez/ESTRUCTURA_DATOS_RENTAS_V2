@@ -1,0 +1,2 @@
+Modelo,MAPE_mensual_pct,RMSE_MM_COP,MAE_MM_COP,Error_trim_pct,Sesgo_MM_COP,Parsimonia,Descripcion
+Seasonal naive,15.07,45.8,42.6,7.93,-21.9,Maxima,"y_hat(t)=y(t-12), sin variables exogenas"
