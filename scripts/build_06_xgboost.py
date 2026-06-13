@@ -187,13 +187,15 @@ for lag in [1, 2, 3, 12]:
     df_features[f'Lag_{lag}'] = df_features['y'].shift(lag)
 
 # ── Medias Móviles ──
-df_features['MA_3'] = df_features['y'].rolling(3).mean()
-df_features['MA_6'] = df_features['y'].rolling(6).mean()
-df_features['MA_12'] = df_features['y'].rolling(12).mean()
+# C8 Anti-leakage: shift(1) antes de rolling/diff — solo usa info hasta t-1
+_y = df_features['y']
+df_features['MA_3'] = _y.shift(1).rolling(3).mean()
+df_features['MA_6'] = _y.shift(1).rolling(6).mean()
+df_features['MA_12'] = _y.shift(1).rolling(12).mean()
 
 # ── Variables de Momentum ──
-df_features['Diff_1'] = df_features['y'].diff(1)
-df_features['Diff_12'] = df_features['y'].diff(12)
+df_features['Diff_1'] = _y.shift(1).diff(1)
+df_features['Diff_12'] = _y.shift(1).diff(12)
 
 # ── Variables Macroeconómicas (obligatorias por protocolo de tesis) ──
 MACRO_VARS = ['IPC', 'Salario_Minimo', 'UPC', 'Consumo_Hogares', 'SMLV_COP', 'IPC_Idx']
