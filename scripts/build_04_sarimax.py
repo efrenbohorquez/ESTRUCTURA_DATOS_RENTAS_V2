@@ -452,40 +452,43 @@ residuos = resultado.resid
 
 # ── Diagnóstico visual (4 paneles) ──
 fig, axes = plt.subplots(2, 2, figsize=FIGSIZE_QUAD if _VIZ_THEME_LOADED else (14, 10))
+if _VIZ_THEME_LOADED:
+    grafica_residuos(axes, residuos, titulo_prefix='SARIMAX')
+else:
+    # Panel 1: Serie de residuos
+    ax = axes[0, 0]
+    ax.plot(residuos.index, residuos.values, color=C_PRIMARY, linewidth=1)
+    ax.axhline(0, color='red', linewidth=0.8, linestyle='--')
+    ax.fill_between(residuos.index,
+                    -2*residuos.std(), 2*residuos.std(),
+                    alpha=0.1, color='red')
+    ax.set_title('Residuos del Modelo', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Residuo (log1p)')
+    ax.grid(True, alpha=0.3)
 
-# Panel 1: Serie de residuos
-ax = axes[0, 0]
-ax.plot(residuos.index, residuos.values, color=C_PRIMARY, linewidth=1)
-ax.axhline(0, color='red', linewidth=0.8, linestyle='--')
-ax.fill_between(residuos.index,
-                -2*residuos.std(), 2*residuos.std(),
-                alpha=0.1, color='red')
-ax.set_title('Residuos del Modelo', fontsize=11, fontweight='bold')
-ax.set_ylabel('Residuo (log1p)')
-ax.grid(True, alpha=0.3)
+    # Panel 2: Histograma + QQ
+    ax2 = axes[0, 1]
+    ax2.hist(residuos, bins=15, density=True, alpha=0.7, color=C_PRIMARY, edgecolor='white')
+    x_vals = np.linspace(residuos.min(), residuos.max(), 100)
+    ax2.plot(x_vals, stats.norm.pdf(x_vals, residuos.mean(), residuos.std()),
+             color=C_SECONDARY, linewidth=2, label='Normal teórica')
+    ax2.set_title('Distribución de Residuos', fontsize=11, fontweight='bold')
+    ax2.legend(fontsize=9)
+    ax2.grid(True, alpha=0.3)
 
-# Panel 2: Histograma + QQ
-ax2 = axes[0, 1]
-ax2.hist(residuos, bins=15, density=True, alpha=0.7, color=C_PRIMARY, edgecolor='white')
-x_vals = np.linspace(residuos.min(), residuos.max(), 100)
-ax2.plot(x_vals, stats.norm.pdf(x_vals, residuos.mean(), residuos.std()),
-         color=C_SECONDARY, linewidth=2, label='Normal teórica')
-ax2.set_title('Distribución de Residuos', fontsize=11, fontweight='bold')
-ax2.legend(fontsize=9)
-ax2.grid(True, alpha=0.3)
+    # Panel 3: ACF de residuos
+    max_lags_resid = min(24, len(residuos) // 2 - 1)
+    plot_acf(residuos, lags=max_lags_resid, ax=axes[1, 0], alpha=0.05)
+    axes[1, 0].set_title('ACF Residuos', fontsize=11, fontweight='bold')
 
-# Panel 3: ACF de residuos
-max_lags_resid = min(24, len(residuos) // 2 - 1)
-plot_acf(residuos, lags=max_lags_resid, ax=axes[1, 0], alpha=0.05)
-axes[1, 0].set_title('ACF Residuos', fontsize=11, fontweight='bold')
+    # Panel 4: QQ-Plot
+    stats.probplot(residuos, dist='norm', plot=axes[1, 1])
+    axes[1, 1].set_title('QQ-Plot Residuos', fontsize=11, fontweight='bold')
+    axes[1, 1].get_lines()[1].set_color(C_SECONDARY)
 
-# Panel 4: QQ-Plot
-stats.probplot(residuos, dist='norm', plot=axes[1, 1])
-axes[1, 1].set_title('QQ-Plot Residuos', fontsize=11, fontweight='bold')
-axes[1, 1].get_lines()[1].set_color(C_SECONDARY)
+    plt.suptitle('Diagnóstico de Residuos — SARIMAX',
+                 fontsize=14, fontweight='bold', y=1.01, fontfamily='serif')
 
-plt.suptitle('Diagnóstico de Residuos — SARIMAX',
-             fontsize=14, fontweight='bold', y=1.01, fontfamily='serif')
 plt.tight_layout()
 if _VIZ_THEME_LOADED:
     marca_agua(fig)
