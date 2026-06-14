@@ -1173,38 +1173,48 @@ for r in resultados:
           f"{r.get('kpss_stat', np.nan):>10.4f} "
           f"{r.get('kpss_p', np.nan):>8.4f} {k_ico:>5} {vdct:>14}")
 
-# ── Gráfica 2×2 ──
-fig, axes = plt.subplots(2, 2, figsize=FIGSIZE_QUAD)
+# ── Gráfica 4×1 Original (Restaurada) ──
+fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
 axes = axes.flatten()
-cols_v = [C_PRIMARY, C_SECONDARY, C_TERTIARY, C_SENARY]
-for i, ((s, n), col) in enumerate(zip(variantes, cols_v)):
+
+# Usar log1p(y) como base tal cual el screenshot antiguo
+serie_log = np.log1p(serie)
+variantes_log = [
+    (serie_log,                            'log1p(y) — Original'),
+    (serie_log.diff().dropna(),            'Δy — Diferencia regular (d=1)'),
+    (serie_log.diff(12).dropna(),          'Δ₁₂y — Diferencia estacional (D=1, s=12)'),
+    (serie_log.diff(12).diff().dropna(),   'ΔΔ₁₂y — Doble diferenciación (d=1, D=1)'),
+]
+
+cols_v = ['#2C3E50', '#2980B9', '#27AE60', '#8E44AD']
+for i, ((s, n), col) in enumerate(zip(variantes_log, cols_v)):
     ax = axes[i]
     sc = s.dropna()
     if len(sc) > 0:
-        ax.plot(sc.index, sc.values/1e9, color=col, lw=1.5)
-        ax.axhline(y=sc.mean()/1e9, color='black', ls='--', alpha=0.5, lw=0.8)
+        ax.plot(sc.index, sc.values, color=col, lw=1.5)
+        ax.axhline(y=sc.mean(), color='black', ls='--', alpha=0.3, lw=1)
         ax.fill_between(sc.index,
-                        (sc.mean() - 2*sc.std())/1e9,
-                        (sc.mean() + 2*sc.std())/1e9,
-                        alpha=0.1, color=col)
-    r = resultados[i] if i < len(resultados) else {}
+                        (sc.mean() - 2*sc.std()),
+                        (sc.mean() + 2*sc.std()),
+                        alpha=0.08, color=col)
+    
+    r = test_est(sc, n)
+    a_ico = '✅ ESTACIONARIA' if r.get('adf_ok') and r.get('kpss_ok') else '❌ NO ESTAC.'
     sub = (f"ADF p={r.get('adf_p', np.nan):.4f} | "
-           f"KPSS p={r.get('kpss_p', np.nan):.4f}")
-    if _VIZ_THEME_LOADED:
-        titulo_profesional(ax, n, sub)
-        formato_pesos_eje(ax, eje='y')
-    else:
-        ax.set_title(f'{n}\n{sub}', fontsize=10)
-    ax.grid(True, alpha=0.3)
-    ax.set_ylabel('Valor (miles MM$)', fontsize=9)
+           f"KPSS p={r.get('kpss_p', np.nan):.4f} ⟶ {a_ico}")
+    
+    ax.set_title(n, fontsize=11, fontweight='bold', loc='left', fontfamily='serif')
+    ax.text(0.01, 0.95, sub, transform=ax.transAxes, fontsize=9, 
+            color='gray', style='italic', va='top', ha='left')
+    ax.grid(True, alpha=0.2)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-plt.suptitle('Validación de Estacionariedad — ADF + KPSS',
-             fontsize=15, fontweight='bold', y=1.01, fontfamily='serif')
 plt.tight_layout()
 if _VIZ_THEME_LOADED:
-    marca_agua(fig)
     guardar_figura(fig, '02_estacionariedad_adf_kpss', OUTPUTS_FIGURES)
 plt.show()
+
 
 # ── Recomendación SARIMAX ──
 d_opt, D_opt = 0, 0

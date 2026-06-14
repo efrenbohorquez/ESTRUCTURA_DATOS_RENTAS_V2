@@ -58,7 +58,7 @@ try:
         input_path=str(notebook_path),
         output_path=str(output_path),
         timeout=900,
-        kernel_name="python3.11",
+        kernel_name="python3",
         parameters={}
     )
     print(f"\n{'='*70}")
