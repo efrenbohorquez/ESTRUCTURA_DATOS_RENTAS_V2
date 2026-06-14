@@ -1,0 +1,209 @@
+  🎨 Tema profesional aplicado — Tipografía serif, paleta académica, DPI 300
+Config cargada -- Datos: BaseRentasCedidasVF.xlsx | Periodo: 2021-10-01 a 2025-12-31
+  Tema profesional activo -- DPI 300, tipografia serif, paleta academica
+  ⚠️ SHAP no disponible — solo Importancia de Variables nativa
+══════════════════════════════════════════════════════════════════════
+INGENIERÍA DE VARIABLES — XGBoost para Rentas Cedidas
+══════════════════════════════════════════════════════════════════════
+  Serie original:    51 meses (Oct 2021 – Dec 2025)
+  Tras eliminar NaN: 38 meses (2022-11-01 → 2025-12-01)
+  Variables creadas:  25
+
+  Variables de calendario: Mes, Trimestre, Anio, Es_Pico_Fiscal, Es_Festividad, Semestre
+  Lags:                    Lag_1, Lag_2, Lag_3, Lag_12
+  Medias móviles:          MA_3, MA_6, MA_12
+  Momentum:                Diff_1, Diff_12
+  Macro:                   IPC, Salario_Minimo, UPC, Consumo_Hogares, SMLV_COP, IPC_Idx
+  Cíclicas:                Mes_sin, Mes_cos
+  Tendencia:               Trend, Trend_sq
+
+──────────────────────────────────────────────────────────────────────
+DIVISIÓN ENTRENAMIENTO / PRUEBA
+──────────────────────────────────────────────────────────────────────
+  Entrenamiento: 35 meses (2022-11-01 → 2025-09-01) | 25 variables
+  Prueba:        3 meses (2025-10-01 → 2025-12-01)
+
+  ✅ Ingeniería de variables completa — 25 variables predictoras
+══════════════════════════════════════════════════════════════════════
+CORRELACIÓN DE VARIABLES CON VARIABLE OBJETIVO (log1p Recaudo)
+══════════════════════════════════════════════════════════════════════
+  Lag_12               r = +0.8691  + ██████████████████████████
+  Es_Pico_Fiscal       r = +0.7189  + █████████████████████
+  Semestre             r = +0.1971  + █████
+  Mes_cos              r = +0.1961  + █████
+  Anio                 r = +0.1789  + █████
+  SMLV_COP             r = +0.1742  + █████
+  Trend_sq             r = +0.1431  + ████
+  Trend                r = +0.1344  + ████
+  IPC_Idx              r = +0.1237  + ███
+  MA_12                r = +0.0730  + ██
+  Consumo_Hogares      r = +0.0478  + █
+  Diff_12              r = +0.0232  + 
+  Lag_2                r = +0.0202  + 
+  Diff_1               r = -0.0847  - ██
+  Trimestre            r = -0.0865  - ██
+  Lag_1                r = -0.1053  - ███
+  MA_6                 r = -0.1186  - ███
+  IPC                  r = -0.1361  - ████
+  Mes                  r = -0.1362  - ████
+  Mes_sin              r = -0.1598  - ████
+  UPC                  r = -0.1603  - ████
+  Salario_Minimo       r = -0.1741  - █████
+  Es_Festividad        r = -0.2378  - ███████
+  MA_3                 r = -0.3059  - █████████
+  Lag_3                r = -0.4175  - ████████████
+  📊 Figura guardada: 06_xgboost_correlacion_features.png
+
+──────────────────────────────────────────────────────────────────────
+DIAGNÓSTICO DE MULTICOLINEALIDAD
+──────────────────────────────────────────────────────────────────────
+  Anio                 ↔ SMLV_COP             r = +0.9983
+  Trend                ↔ IPC_Idx              r = +0.9930
+  Trend                ↔ Trend_sq             r = +0.9881
+  Mes                  ↔ Trimestre            r = +0.9735
+  Salario_Minimo       ↔ UPC                  r = +0.9712
+  Trend_sq             ↔ IPC_Idx              r = +0.9647
+  Anio                 ↔ Trend                r = +0.9477
+  Anio                 ↔ IPC_Idx              r = +0.9445
+  SMLV_COP             ↔ IPC_Idx              r = +0.9436
+  Trend                ↔ SMLV_COP             r = +0.9418
+  Trend_sq             ↔ MA_12                r = +0.9383
+  Trend                ↔ MA_12                r = +0.9270
+  Anio                 ↔ Trend_sq             r = +0.9265
+  IPC                  ↔ SMLV_COP             r = -0.9235
+  Trend_sq             ↔ SMLV_COP             r = +0.9142
+  MA_12                ↔ IPC_Idx              r = +0.9117
+  Anio                 ↔ IPC                  r = -0.9039
+
+  → XGBoost es robusto ante multicolinealidad (no afecta predicción)
+    Sin embargo, la Importancia de Variables puede diluirse entre variables correlacionadas
+══════════════════════════════════════════════════════════════════════
+OPTIMIZACIÓN BAYESIANA — Optuna (TPE Sampler)
+══════════════════════════════════════════════════════════════════════
+  Espacio: 9 hiperparámetros | CV: TimeSeriesSplit(3 folds)
+  Trials: 200 (Tree-Structured Parzen Estimator)
+
+
+──────────────────────────────────────────────────────────────────────
+MEJOR CONFIGURACIÓN ENCONTRADA (Iteración #173)
+──────────────────────────────────────────────────────────────────────
+  n_estimators             : 77
+  max_depth                : 4
+  learning_rate            : 0.19111987437458447
+  subsample                : 0.675648229083239
+  colsample_bytree         : 0.739696489859135
+  min_child_weight         : 10
+  gamma                    : 0.19927156674759733
+  reg_alpha                : 0.5797230651067904
+  reg_lambda               : 0.569982085702033
+  CV RMSE (log1p):        0.245103
+  📊 Figura guardada: 06_xgboost_optuna_convergencia.png
+
+  ✅ Hiperparámetros óptimos seleccionados
+══════════════════════════════════════════════════════════════════════
+VALIDACIÓN OUT-OF-SAMPLE — XGBoost
+══════════════════════════════════════════════════════════════════════
+  Periodo test:  2025-10 → 2025-12 (3 meses)
+
+──────────────────────────────────────────────────────────────────────
+Mes                     Real      Pronóstico        Error   Error%
+──────────────────────────────────────────────────────────────────────
+  2025-10    $        313.0MM  $        286.8MM  $     -26.2MM    -8.4%
+  2025-11    $        273.8MM  $        297.4MM  $      23.6MM     8.6%
+  2025-12    $        241.0MM  $        222.7MM  $     -18.3MM    -7.6%
+──────────────────────────────────────────────────────────────────────
+  MAPE:  8.20%
+  RMSE:  $22.9 MM COP
+  MAE:   $22.7 MM COP
+  📊 Figura guardada: 06_xgboost_oos_validacion.png
+
+  ✅ Pronóstico OOS guardado: xgboost_forecast.csv
+  📊 Figura guardada: 06_xgboost_pronostico_vs_real_mejorado.png
+══════════════════════════════════════════════════════════════════════
+✅ Figura 'Pronóstico vs Real' creada y guardada
+══════════════════════════════════════════════════════════════════════
+  Archivo: 06_xgboost_pronostico_vs_real_mejorado.png
+  Características:
+    • IC 95% mediante bootstrap de residuos
+    • Métricas MAPE/RMSE/MAE embebidas
+    • Error % anotado sobre cada punto (verde=+, rojo=−)
+    • Contexto histórico (últimos 18 meses entrenamiento)
+    • Legibilidad profesional (16:9, fuentes de contraste)
+══════════════════════════════════════════════════════════════════════
+IMPORTANCIA DE VARIABLES (Ganancia) — XGBoost
+══════════════════════════════════════════════════════════════════════
+  Lag_12               100.00%  ████████████████████████████████████████████████████████████████████████████████████████████████████
+
+──────────────────────────────────────────────────────────────────────
+DISTRIBUCIÓN POR TIPO DE VARIABLE
+──────────────────────────────────────────────────────────────────────
+  Macroeconómicas:      0.0% 
+  Lags / Momentum:    100.0% Lag_12
+  Calendario:           0.0% 
+  Tendencia:            0.0%
+  📊 Figura guardada: 06_xgboost_feature_importance.png
+
+  ℹ️ SHAP no disponible — solo Importancia de Variables nativa
+
+  ✅ Análisis de importancia completado
+══════════════════════════════════════════════════════════════════════
+COMPARATIVA HEAD-TO-HEAD — Validación Oct–Dic 2025
+══════════════════════════════════════════════════════════════════════
+       Modelo  MAPE  RMSE_MM  MAE_MM
+Rank                                
+1     Prophet  6.30     28.7    19.3
+2     XGBoost  8.20     22.9    22.7
+3     SARIMAX  9.75     37.0    28.9
+
+──────────────────────────────────────────────────────────────────────
+MODELO LÍDER: Prophet
+──────────────────────────────────────────────────────────────────────
+  MAPE:   6.30%
+  RMSE:   $28.7 MM
+  MAE:    $19.3 MM
+  📊 Figura guardada: 06_xgboost_comparativa_modelos.png
+
+  ✅ Tabla comparativa guardada: comparacion_xgboost_vs_lineales.csv
+  📊 Figura guardada: 06_xgboost_produccion_2026.png
+══════════════════════════════════════════════════════════════════════
+PRONÓSTICO MENSUAL 2026 — XGBoost
+══════════════════════════════════════════════════════════════════════
+  2026-01   $     299.4 MM   [$233.0 – $471.6]
+  2026-02   $     287.8 MM   [$206.5 – $404.2]
+  2026-03   $     299.4 MM   [$214.8 – $420.4]
+  2026-04   $     225.3 MM   [$175.3 – $317.3]
+  2026-05   $     225.3 MM   [$161.7 – $316.4]
+  2026-06   $     264.8 MM   [$206.5 – $372.9]
+  2026-07   $     299.4 MM   [$214.8 – $420.4]
+  2026-08   $     287.8 MM   [$206.5 – $453.4]
+  2026-09   $     287.8 MM   [$224.4 – $453.4]
+  2026-10   $     299.4 MM   [$214.8 – $420.4]
+  2026-11   $     287.8 MM   [$224.4 – $453.4]
+  2026-12   $     264.8 MM   [$190.0 – $371.8]
+──────────────────────────────────────────────────────────────────────
+  TOTAL 2026:    $    3329.1 MM
+
+  ✅ Pronóstico 2026 exportado: xgboost_forecast_2026.csv
+══════════════════════════════════════════════════════════════════════
+RESUMEN EJECUTIVO — MODELO XGBoost
+══════════════════════════════════════════════════════════════════════
+  Modelo                   : XGBoost
+  Transformacion           : log1p
+  Serie                    : Oct 2021 – Dic 2025 (51 meses, serie completa)
+  Train_efectivo           : 35 meses (tras lags)
+  Test                     : 3 meses (Oct–Dic 2025)
+  Features                 : 25
+  N_estimators             : 77
+  Max_depth                : 4
+  Learning_rate            : 0.19111987437458447
+  Optimizacion             : Optuna (200 trials)
+  MAPE                     : 8.2
+  RMSE_MM                  : 22.9
+  MAE_MM                   : 22.7
+  Top_Feature              : Lag_12
+  Top_Feature_Gain_pct     : 100.0
+
+  ✅ Métricas exportadas:        xgboost_metricas.csv
+  ✅ Importancia de variables: xgboost_feature_importance.csv
+  ✅ Pronóstico OOS:             xgboost_forecast.csv
+  ✅ Comparativa vs lineales:    comparacion_xgboost_vs_lineales.csv

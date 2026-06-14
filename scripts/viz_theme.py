@@ -393,37 +393,71 @@ def grafica_residuos(axes, residuos, titulo_prefix=''):
     """
     from scipy import stats
     from statsmodels.graphics.tsaplots import plot_acf
+    from statsmodels.stats.diagnostic import acorr_ljungbox
     
     ax1, ax2, ax3, ax4 = axes.flat
     
+    # Textos estadísticos
+    mu = residuos.mean()
+    sigma = residuos.std()
+    _, p_shap = stats.shapiro(residuos.dropna())
+    
     # 1. Serie de residuos
-    ax1.plot(residuos, color=C_PRIMARY, linewidth=1.0, alpha=0.7)
-    ax1.axhline(y=0, color=C_SECONDARY, linestyle='-', linewidth=0.8)
-    ax1.axhline(y=residuos.std()*2, color=C_TEXT_LIGHT, linestyle='--', linewidth=0.6, alpha=0.5)
-    ax1.axhline(y=-residuos.std()*2, color=C_TEXT_LIGHT, linestyle='--', linewidth=0.6, alpha=0.5)
-    ax1.fill_between(range(len(residuos)), -residuos.std()*2, residuos.std()*2,
-                     alpha=0.05, color=C_TERTIARY)
-    titulo_profesional(ax1, f'{titulo_prefix}Residuos vs Tiempo')
+    ax1.plot(residuos.index if hasattr(residuos, 'index') else range(len(residuos)), 
+             residuos, color='#333333', linewidth=1.0)
+    ax1.axhline(y=0, color='#8B0000', linestyle='-', linewidth=0.8) # Dark red line at 0
+    
+    std2 = sigma * 2
+    y_min, y_max = ax1.get_ylim()
+    ax1.fill_between(residuos.index if hasattr(residuos, 'index') else range(len(residuos)), 
+                     -std2, std2, alpha=0.08, color='#2980B9')
+    
+    sub_1 = f"$\mu = {mu:.4f}$ | $\sigma = {sigma:.4f}$"
+    titulo_profesional(ax1, f'{titulo_prefix}Residuos vs Tiempo', sub_1)
     
     # 2. Histograma
-    ax2.hist(residuos, bins=20, color=C_TERTIARY, edgecolor='white',
-             linewidth=0.8, alpha=0.7, density=True)
+    ax2.hist(residuos, bins=15, color='#5DADE2', edgecolor='white',
+             linewidth=0.8, alpha=0.9, density=True)
     x_range = np.linspace(residuos.min(), residuos.max(), 100)
-    ax2.plot(x_range, stats.norm.pdf(x_range, residuos.mean(), residuos.std()),
-             color=C_SECONDARY, linewidth=2.0, label='Normal teórica')
-    titulo_profesional(ax2, f'{titulo_prefix}Distribución de Residuos')
+    ax2.plot(x_range, stats.norm.pdf(x_range, mu, sigma),
+             color='#C0392B', linewidth=1.5, label='Normal teórica')
+    
+    titulo_profesional(ax2, f'{titulo_prefix}Distribución de Residuos', f"Shapiro-Wilk $p = {p_shap:.4f}$")
+    ax2.legend(fontsize=8, loc='upper right')
     
     # 3. Q-Q Plot
-    stats.probplot(residuos, dist='norm', plot=ax3)
-    ax3.get_lines()[0].set(color=C_TERTIARY, markersize=4, alpha=0.6)
-    ax3.get_lines()[1].set(color=C_SECONDARY, linewidth=1.5)
-    titulo_profesional(ax3, f'{titulo_prefix}Q-Q Normal')
+    res_prob = stats.probplot(residuos.dropna(), dist='norm', plot=ax3)
+    ax3.get_lines()[0].set(color='#5DADE2', markersize=4, alpha=0.8) # dots
+    ax3.get_lines()[1].set(color='#C0392B', linewidth=1.2) # line
+    
+    # R2 del Q-Q plot
+    r_sq = res_prob[2][2] ** 2
+    titulo_profesional(ax3, f'{titulo_prefix}Q-Q Normal', f"$R^2 = {r_sq:.4f}$")
     
     # 4. ACF
-    plot_acf(residuos, ax=ax4, lags=15, alpha=0.05,
-             color=C_PRIMARY, vlines_kwargs={'colors': C_PRIMARY, 'linewidth': 1.0})
-    titulo_profesional(ax4, f'{titulo_prefix}ACF de Residuos')
+    plot_acf(residuos.dropna(), ax=ax4, lags=15, alpha=0.05,
+             color='black', vlines_kwargs={'colors': 'black', 'linewidth': 1.0})
+        
+    # Ljung-Box
+    # Evitar warning usando lags min(15, len(residuos)/2 - 1)
+    max_lag = min(15, len(residuos.dropna()) // 2 - 1)
+    if max_lag > 0:
+        lb_res = acorr_ljungbox(residuos.dropna(), lags=[max_lag], return_df=True)
+        min_p_lb = lb_res['lb_pvalue'].min()
+        sub_lb = f"Ljung-Box min $p = {min_p_lb:.4f}$"
+    else:
+        sub_lb = "Ljung-Box p = N/A"
+        
+    titulo_profesional(ax4, f'{titulo_prefix}ACF de Residuos', sub_lb)
     
+    # Estética general: fondo blanco, sin bordes superiores y derechos
+    for ax in axes.flat:
+        ax.grid(True, alpha=0.2, ls=':', color='gray')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_color('#DDDDDD')
+        ax.spines['left'].set_color('#DDDDDD')
+        
     return axes
 
 

@@ -2,7 +2,7 @@
 REPORTE TECNICO: MODELO LSTM - RENTAS CEDIDAS
 ======================================================================
 
-Fecha de generacion: 2026-03-27 11:52
+Fecha de generacion: 2026-06-13 20:39
 
 1. CONFIGURACION
    Serie: 51 meses (Oct 2021 - Dic 2025)
@@ -23,7 +23,7 @@ Fecha de generacion: 2026-03-27 11:52
    Mejor epoca (mediana): 66
    Batch size: 4
    LR inicial: 0.0005
-   Tiempo total: 90.8 seg
+   Tiempo total: 157.2 seg
 
 4. METRICAS OOS (Oct-Dic 2025)
    MAPE:    13.58%
