@@ -431,7 +431,7 @@ def grafica_residuos(axes, residuos, titulo_prefix=''):
     ax3.get_lines()[1].set(color='#C0392B', linewidth=1.2) # line
     
     # R2 del Q-Q plot
-    r_sq = res_prob[2][2] ** 2
+    r_sq = res_prob[1][2] ** 2
     titulo_profesional(ax3, f'{titulo_prefix}Q-Q Normal', f"$R^2 = {r_sq:.4f}$")
     
     # 4. ACF
