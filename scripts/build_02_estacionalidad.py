@@ -1174,20 +1174,20 @@ for r in resultados:
           f"{r.get('kpss_p', np.nan):>8.4f} {k_ico:>5} {vdct:>14}")
 
 # ── Gráfica 4×1 Original (Restaurada para match exacto con documento) ──
-fig, axes = plt.subplots(4, 1, figsize=(12, 12), sharex=True)
+fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
 axes = axes.flatten()
 
 serie_log = np.log1p(serie)
 variantes_log = [
-    (serie_log,                            r'$\mathbf{log1p(y) - Original}$'),
-    (serie_log.diff().dropna(),            r'$\mathbf{\Delta y - Diferencia regular (d=1)}$'),
-    (serie_log.diff(12).dropna(),          r'$\mathbf{\Delta_{12}y - Diferencia estacional (D=1, s=12)}$'),
-    (serie_log.diff(12).diff().dropna(),   r'$\mathbf{\Delta\Delta_{12}y - Doble diferenciación (d=1, D=1)}$'),
+    (serie_log,                            r'log1p(y) — Original'),
+    (serie_log.diff().dropna(),            r'$\Delta y$ — Diferencia regular (d=1)'),
+    (serie_log.diff(12).dropna(),          r'$\Delta_{12}y$ — Diferencia estacional (D=1, s=12)'),
+    (serie_log.diff(12).diff().dropna(),   r'$\Delta\Delta_{12}y$ — Doble diferenciación (d=1, D=1)'),
 ]
 
 # Colores de sombreado de fondo y de la línea
-bg_colors = ['#F2F4F4', '#EBF5FB', '#EAFAF1', '#F5EEF8'] # Gris, Azul, Verde, Morado pastel
-line_colors = ['#2C3E50', '#2980B9', '#27AE60', '#8E44AD']
+bg_colors = ['#EAECEE', '#EAF2F8', '#E9F7EF', '#F5EEF8']
+line_colors = ['#333333', '#2980B9', '#27AE60', '#8E44AD']
 
 for i, ((s, n), bg_col, l_col) in enumerate(zip(variantes_log, bg_colors, line_colors)):
     ax = axes[i]
@@ -1196,25 +1196,24 @@ for i, ((s, n), bg_col, l_col) in enumerate(zip(variantes_log, bg_colors, line_c
         ax.plot(sc.index, sc.values, color=l_col, lw=1.2)
         ax.axhline(y=sc.mean(), color='black', ls='--', alpha=0.3, lw=0.8)
         
-        # Sombreado de fondo que cubre todo el rango temporal
         y_min, y_max = ax.get_ylim()
-        ax.fill_between(sc.index, y_min, y_max, color=bg_col, alpha=0.6)
-        ax.set_ylim(y_min, y_max) # Fijar los límites para que no se expanda verticalmente
+        ax.fill_between(sc.index, y_min, y_max, color=bg_col, alpha=0.4)
+        ax.set_ylim(y_min, y_max)
         
     r = test_est(sc, n)
-    # En la figura original el texto era -> NO ESTAC. o -> ESTACIONARIA.
-    a_ico = 'ESTACIONARIA' if r.get('adf_ok') and r.get('kpss_ok') else 'NO ESTAC.'
+    # Replicamos el cuadrito vacío de error de fuente para ser 100% idénticos
+    a_ico = '[] ESTACIONARIA' if r.get('adf_ok') and r.get('kpss_ok') else '[] NO ESTAC.'
     sub = (f"ADF p={r.get('adf_p', np.nan):.4f} | "
-           f"KPSS p={r.get('kpss_p', np.nan):.2f} $\\longrightarrow$ {a_ico}")
+           f"KPSS p={r.get('kpss_p', np.nan):.2f} -> {a_ico}")
     
-    # Título fuera del plot, a la izquierda
-    ax.set_title(n, fontsize=12, loc='left', pad=10, fontfamily='serif')
+    # Título fuera del plot
+    ax.set_title(n, fontsize=11, fontweight='bold', loc='left')
     
-    # Subtítulo dentro del plot, arriba a la izquierda
-    ax.text(0.01, 0.95, sub, transform=ax.transAxes, fontsize=10, 
-            color='gray', style='italic', va='top', ha='left', fontfamily='serif')
+    # Subtítulo dentro del plot
+    ax.text(0.01, 0.92, sub, transform=ax.transAxes, fontsize=9, 
+            color='gray', style='italic', va='top', ha='left')
     
-    ax.grid(True, alpha=0.4, color='white', ls='-')
+    ax.grid(True, alpha=0.2, color='gray', ls=':')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_color('#DDDDDD')
@@ -1222,7 +1221,7 @@ for i, ((s, n), bg_col, l_col) in enumerate(zip(variantes_log, bg_colors, line_c
 
 plt.tight_layout()
 if _VIZ_THEME_LOADED:
-    # Temporalmente desactivamos la marca de agua solo para esta figura para que quede idéntica al word
+    # Genera la versión con y sin marca de agua normalmente
     guardar_figura(fig, '02_estacionariedad_adf_kpss', OUTPUTS_FIGURES)
 plt.show()
 
